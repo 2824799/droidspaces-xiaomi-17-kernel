@@ -17,3 +17,23 @@ r30-control/
 - 不为了匹配文件名而事后修改 Image release 字符串。
 - 第一目标是重现干净基线并闭合 GKI/system_dlkm/vendor_dlkm 模块关系。
 
+## 设备 boot 候选
+
+Kleaf 导出的 64 MiB `boot.img` 是通用 GKI 构建产物，不能直接视为小米 17
+设备候选。设备候选必须以已校验的 96 MiB 原厂 `boot_a.img` 为模板，只替换
+其中的 kernel，并在重打包后再次解包核验。
+
+```bash
+/home/nahida/agents/tmp/kernel-work/variants/r30-control/scripts/package-stock-boot.sh
+```
+
+该脚本只借用已启动手机的 ARM64 环境运行历史 MagiskBoot，不读取或写入任何
+设备分区，不重启设备。输出位于：
+
+```text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-control-stock-template/latest/
+```
+
+候选仅允许在解锁 bootloader 上使用 `fastboot boot` 临时测试，禁止刷写。替换
+kernel 后无法保留有效的小米 AVB 加密签名；保留 `AVB0`/`AVBf` 外形不代表
+签名有效。

@@ -1178,6 +1178,38 @@ EFI/GBL 只作为备用救援通道，不作为常规内核验证路径。通过
 
 **停止条件**：如果纯控制内核仍无 `dsi_init_cb`，问题属于 GKI/模块/厂商蜂窝栈配对，不继续加入 Droidspaces 配置。
 
+#### 2026-08-26 R30 控制版当前进展
+
+已锁定并完成 `android16-6.12-2026-03_r30` 的纯控制构建：
+
+~~~text
+kernel release: 6.12.69-android16-6-4k
+Image size:     42097152 bytes
+Image SHA-256:  9888b71a440c6713f820fe4e1775f460bb9ae6272444bdeaba5039357ae59a24
+~~~
+
+Kleaf 导出的 64 MiB 通用 `boot.img` 不再作为设备候选。设备候选以当前原厂
+96 MiB `boot_a.img` 为模板，经 MagiskBoot 只替换 kernel，并在重打包后重新
+解包验证：
+
+~~~text
+stock template SHA-256: af83b83f63ae833b05d69b87b8e216c3a0bace798699080e799cd8fff344248b
+candidate size:          100663296 bytes
+candidate SHA-256:       b66b1d547142fcedea03b9d1b270a41b19eb7dd53b36dad1fba5d5413b7eb6e6
+embedded kernel SHA-256: 9888b71a440c6713f820fe4e1775f460bb9ae6272444bdeaba5039357ae59a24
+header version:          4
+ramdisk size:            0
+~~~
+
+两次独立重打包得到相同 candidate SHA-256。候选保留 `AVB0`/`AVBf` 外形并
+复用原厂 vbmeta 数据，但修改 kernel 后原厂 AVB 签名在密码学上不再有效；
+它只允许用于解锁 bootloader 下的 `fastboot boot` 临时测试，严禁刷写。
+
+此前直接尝试 64 MiB 通用 GKI `boot.img` 的过程被用户手动进入 fastboot
+打断，不能用于判断 R30 是否能启动。该错误路径已停止，设备随后确认运行
+stock 内核，A 槽关键分区哈希均未改变。96 MiB 原厂模板候选截至本文更新时
+尚未实机启动。
+
 ### 阶段 D：Droidspaces 单变量递增
 
 只有阶段 C 的 SIM、数据和 IMS 正常后，才按顺序加入：
