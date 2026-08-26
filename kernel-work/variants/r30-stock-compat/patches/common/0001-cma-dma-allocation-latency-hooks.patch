@@ -1,0 +1,125 @@
+From aa795bd04bdf992a0237c34eef7fbb54cc391caa Mon Sep 17 00:00:00 2001
+From: wudihui <wudihui@xiaomi.corp-partner.google.com>
+Date: Wed, 29 Apr 2026 15:33:49 +0800
+Subject: [PATCH] ANDROID: GKI: add vendor hooks for Track CMA and DMA
+ allocation latency.
+
+Measure and quantify the performance gains of our memory allocation optimization project by collecting allocation latency statistics for CMA and DMA memory via vendor hooks for CMA/DMA.
+
+Bug: 514559198
+Bug: 506924601
+
+Change-Id: I4e174d2dd907b5e0fffa3969de6deab2c04bc517
+Signed-off-by: wudihui <wudihui@xiaomi.corp-partner.google.com>
+(cherry picked from commit bd48b3c8e2f473530b402b3a433b41b85e5f3b22)
+---
+ drivers/android/vendor_hooks.c | 4 ++++
+ drivers/dma-buf/dma-heap.c     | 3 +++
+ include/trace/hooks/dmabuf.h   | 6 ++++++
+ include/trace/hooks/mm.h       | 6 ++++++
+ mm/cma.c                       | 3 +++
+ 5 files changed, 22 insertions(+)
+
+diff --git a/drivers/android/vendor_hooks.c b/drivers/android/vendor_hooks.c
+index 08bbe43554a1..6cc6df646e1b 100644
+--- a/drivers/android/vendor_hooks.c
++++ b/drivers/android/vendor_hooks.c
+@@ -732,6 +732,10 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_release_bypass);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_alloc_end);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpm_log);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pci_pm_verify_state);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_alloc_lat_start);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_alloc_lat_end);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dma_heap_buffer_alloc_lat_start);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dma_heap_buffer_alloc_lat_end);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_delay_schedule);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_task_fork);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_task_exit);
+diff --git a/drivers/dma-buf/dma-heap.c b/drivers/dma-buf/dma-heap.c
+index abc2b4c94ce5..744cf3ff468b 100644
+--- a/drivers/dma-buf/dma-heap.c
++++ b/drivers/dma-buf/dma-heap.c
+@@ -82,6 +82,7 @@ struct dma_buf *dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
+ 				      u64 heap_flags)
+ {
+ 	struct dma_buf *dma_buf;
++	u64 stime = 0;
+ 
+ 	if (fd_flags & ~DMA_HEAP_VALID_FD_FLAGS)
+ 		return ERR_PTR(-EINVAL);
+@@ -98,8 +99,10 @@ struct dma_buf *dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
+ 
+ 	trace_android_vh_dma_heap_buffer_alloc_start(heap->name, len,
+ 			fd_flags, heap_flags);
++	trace_android_vh_dma_heap_buffer_alloc_lat_start(&stime);
+ 	dma_buf = heap->ops->allocate(heap, len, fd_flags, heap_flags);
+ 	trace_android_vh_dma_heap_buffer_alloc_end(heap->name, len);
++	trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len, dma_buf);
+ 
+ 	return dma_buf;
+ }
+diff --git a/include/trace/hooks/dmabuf.h b/include/trace/hooks/dmabuf.h
+index 22aca69f8513..835ffa95e93d 100644
+--- a/include/trace/hooks/dmabuf.h
++++ b/include/trace/hooks/dmabuf.h
+@@ -32,6 +32,12 @@ DECLARE_HOOK(android_vh_dma_buf_attr_show_end,
+ DECLARE_HOOK(android_vh_dma_buf_release,
+ 		TP_PROTO(struct dma_buf *data),
+ 		TP_ARGS(data));
++DECLARE_HOOK(android_vh_dma_heap_buffer_alloc_lat_start,
++	TP_PROTO(unsigned long long *stime),
++	TP_ARGS(stime));
++DECLARE_HOOK(android_vh_dma_heap_buffer_alloc_lat_end,
++	TP_PROTO(unsigned long long stime, size_t len, struct dma_buf *dma_buf),
++	TP_ARGS(stime, len, dma_buf));
+ #endif /* _TRACE_HOOK_DMABUF_H */
+ /* This part must be outside protection */
+ #include <trace/define_trace.h>
+diff --git a/include/trace/hooks/mm.h b/include/trace/hooks/mm.h
+index 1277626cf17c..37b59ad3d99c 100644
+--- a/include/trace/hooks/mm.h
++++ b/include/trace/hooks/mm.h
+@@ -776,6 +776,12 @@ DECLARE_HOOK(android_vh_swap_writepage_end,
+ 	TP_PROTO(struct page *page, struct writeback_control *wbc,
+ 		unsigned long swap_writepage_start),
+ 	TP_ARGS(page, wbc, swap_writepage_start));
++DECLARE_HOOK(android_vh_cma_alloc_lat_start,
++	TP_PROTO(unsigned long long *stime),
++	TP_ARGS(stime));
++DECLARE_HOOK(android_vh_cma_alloc_lat_end,
++	TP_PROTO(unsigned long long stime,unsigned long count),
++	TP_ARGS(stime,count));
+ DECLARE_RESTRICTED_HOOK(android_rvh_read_swap_cache_async_timeout,
+ 	TP_PROTO(size_t *count, bool *skip),
+ 	TP_ARGS(count, skip), 2);
+diff --git a/mm/cma.c b/mm/cma.c
+index 26e47f090fb0..b13311ff173c 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -446,6 +446,7 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
+ 	int num_attempts = 0;
+ 	int max_retries = 5;
+ 	bool bypass = false;
++	u64 stime = 0;
+ 
+ 	if (WARN_ON_ONCE((gfp & GFP_KERNEL) == 0 ||
+ 		(gfp & ~(GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY)) != 0))
+@@ -478,6 +479,7 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
+ 		return page;
+ 
+ 	trace_android_vh_cma_alloc_retry(cma->name, &max_retries);
++	trace_android_vh_cma_alloc_lat_start(&stime);
+ 	for (;;) {
+ 		spin_lock_irq(&cma->lock);
+ 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+@@ -569,6 +571,7 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
+ 	trace_cma_alloc_finish(name, pfn, page, count, align, ret);
+ 	trace_android_vh_cma_alloc_finish(cma);
+ 	trace_android_vh_cma_alloc_end(cma, pfn, page, count, align, ret);
++	trace_android_vh_cma_alloc_lat_end(stime, count);
+ 
+ 	if (page) {
+ 		count_vm_event(CMA_ALLOC_SUCCESS);
+-- 
+2.55.0
+

@@ -1,0 +1,4 @@
+7b230aec7dcfec9b2db27cc08f023ab242263e7dc93890c573b195116fcf468c  0001-cma-dma-allocation-latency-hooks.patch
+5e2dcd6c5e98b2c3503adc1a84ff4d020e620575d787c0211f274fab4dd4ddf6  0002-direct-reclaim-allocation-latency-hooks.patch
+538017d56122023ba550fac17ffc7582c60c810d9ea9e354c7a5d66b4d697508  0003-export-try-to-free-pages.patch
+692e89def216ac7bbd47b3a5770005b44767ef4b861955e7b0388f9fe9ecf63f  0004-xiaomi-kmi-symbol-list.patch

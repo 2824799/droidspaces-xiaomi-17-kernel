@@ -1245,6 +1245,85 @@ KernelSU LKM 的 `init_boot_a`，不符合“先模块闭合、无 KernelSU 控�
 内核，`boot_a`、`init_boot_a`、`vendor_boot_a`、`dtbo_a`、`vbmeta_a` 哈希均与
 测试前一致。
 
+#### 2026-08-26 R30 + R31 Xiaomi 兼容链审查结果
+
+随后使用当前字库缓存中的 466 个 `vendor_ramdisk` 模块做了逐导入符号审查。
+原样 R30 共检查 22474 个导入，其中 22466 个通过，8 个引用缺失，归并为 6 个
+唯一 Android vendor hook：
+
+~~~text
+android_vh_cma_alloc_lat_start
+android_vh_cma_alloc_lat_end
+android_vh_dma_heap_buffer_alloc_lat_start
+android_vh_dma_heap_buffer_alloc_lat_end
+android_vh_mm_direct_reclaim_start
+android_vh_mm_direct_reclaim_end
+~~~
+
+这 6 个 tracepoint 的模块期望 CRC 都是 `0x7c5aa8a7`。它们的真实定义、调用点、
+导出和 Xiaomi KMI 列表并不在 R30，而是在 R31 首次形成完整链条。R30 标签日期为
+2026-05-18，R31 标签日期为 2026-05-21；相关 Xiaomi 提交的作者日期则早至
+2026-04-29 至 2026-05-13，因此不能根据公开标签日期断言设备 stock 一定直接基于
+R31。小米可能在公开 R31 标签之前已在内部使用这些提交。能够确定的是：**裸 R30
+相对于当前 stock vendor module ABI 确实过老。**
+
+从官方 `android16-6.12-2026-03_r30..r31` 历史按原顺序回移了 4 个提交：
+
+~~~text
+aa795bd04bdf  ANDROID: GKI: add vendor hooks for Track CMA and DMA allocation latency.
+8aa6935b068b  ANDROID: GKI: add vendor hooks for Track direct_reclaim allocation latency.
+4faf781e81fc  ANDROID: mm: Export try_to_free_pages supports proactive memory reclamation.
+bc587ccd5d16  ANDROID: GKI: update symbol list file for xiaomi
+~~~
+
+这四项必须作为整体保留。仅应用两个 hook 源码提交时，新符号不会进入 KMI trim
+输出；加入 Xiaomi symbol list 但遗漏 `try_to_free_pages` 的正式导出时，Kleaf strict
+KMI 又会以 `Symbols missing from the ksymtab: try_to_free_pages` 拒绝构建。补齐全部
+四项后，严格 KMI 构建和 466 模块审查均通过：
+
+~~~text
+kernel release:            6.12.69-android16-6-4k
+Image size:                42097152 bytes
+Image SHA-256:             b501d87e6b62234494d7df2d87cc533ccc8d729325438f082f32d985d0949c72
+vmlinux SHA-256:           31fd2f87a33c31317d23a3feb219643a9d33b15719f6d7b0447ba243d5c951d9
+Module.symvers SHA-256:    af77d02d0a3e1a7581e8cc416f3b05340364e6d3f3abc01cc2dfa119d09923ab
+modules:                   466
+imports:                   22474
+ok:                        22474
+missing:                   0
+CRC mismatch:              0
+provider conflict:         0
+present but unexported:    0
+release mismatch modules:  0
+flag mismatch modules:     0
+audit_pass:                true
+~~~
+
+审查通过后生成了 96 MiB 原厂模板候选：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260826T234152Z/boot-r30-stock-compat-stock-template.img
+size:                       100663296 bytes
+SHA-256:                    d06380f9ea23cf834cf5f951bbbf7cae8e171ece44117b000c6e0df0ba0829dc
+header version:             4
+ramdisk size:               0
+embedded kernel SHA-256:    b501d87e6b62234494d7df2d87cc533ccc8d729325438f082f32d985d0949c72
+structural checks:          pass
+vendor module audit:        pass
+device boot test:           not run
+~~~
+
+手机当时不在 ADB，因此本轮未借设备执行 ARM64 MagiskBoot。为避免产生不同格式，
+本地 header-v4 重打包器先使用旧 R30 Image 重建既有 MagiskBoot 候选，结果与
+`b66b1d...6e6` 逐字节相同，再用于本轮 Image；该等价性报告随候选一并保存。
+候选复用原厂 vbmeta 数据，但修改 payload 后小米 AVB 密码学签名无效，仍然只能
+`fastboot boot`，严禁刷写。KernelSU LKM 配对和实机启动尚未验收。
+
+工程结论：原始 R30 不再作为候选；当前 `r30-stock-compat` 是“R30 核心 + R31
+全部 Xiaomi 兼容提交”的最小变化诊断候选。纯 R31 仅再多两个与本问题无直接关系
+的提交，可作为更完整、版本关系更清晰的后续基线；但在实机测试前，不能把静态
+全绿等同于已解决黑屏。
+
 ### 阶段 D：Droidspaces 单变量递增
 
 只有阶段 C 的 SIM、数据和 IMS 正常后，才按顺序加入：
