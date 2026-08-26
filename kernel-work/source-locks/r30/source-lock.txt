@@ -1,0 +1,7 @@
+release_tag=android16-6.12-2026-03_r30
+kernel_build_id=15431281
+manifest_repo=https://android.googlesource.com/kernel/manifest
+manifest_branch=common-android16-6.12-2026-03
+manifest_commit=76bdc0766742b0fd58b572bbbb5e204201362f1d
+common_commit=6c9833506661b564ae3bedd6378ff80a3718e256
+kernel_build_commit=6ba5d3b3046f91d165baeacdbcaa16c18af7bf0e

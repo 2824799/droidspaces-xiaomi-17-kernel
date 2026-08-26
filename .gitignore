@@ -1,0 +1,60 @@
+# Device backups and local scratch data
+/backup/
+/tmp/
+
+# Pristine upstream repositories and generated build worktrees
+/kernel-work/upstream/
+/kernel-work/worktrees/
+
+# Downloaded tools, caches, logs, outputs, and binary artifacts
+/kernel-work/tools/
+/kernel-work/cache/
+/kernel-work/logs/
+/kernel-work/out/
+/kernel-work/artifacts/
+
+# Common Android/Kleaf/Bazel generated directories
+**/bazel-bin/
+**/bazel-out/
+**/bazel-testlogs/
+**/bazel-*
+**/.repo/
+
+# Common kernel build products if generated outside the designated out tree
+*.o
+*.o.cmd
+*.a
+*.ko
+*.mod
+*.mod.c
+*.order
+*.symvers
+*.dtb
+*.dtbo
+vmlinux
+System.map
+Image
+Image.gz
+Image.lz4
+
+# Large packed images and archives
+*.img
+*.bin
+*.zip
+*.tar
+*.tar.gz
+*.tar.xz
+*.tar.zst
+
+# Temporary/editor/runtime files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
