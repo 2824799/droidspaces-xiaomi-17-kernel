@@ -1206,9 +1206,44 @@ ramdisk size:            0
 它只允许用于解锁 bootloader 下的 `fastboot boot` 临时测试，严禁刷写。
 
 此前直接尝试 64 MiB 通用 GKI `boot.img` 的过程被用户手动进入 fastboot
-打断，不能用于判断 R30 是否能启动。该错误路径已停止，设备随后确认运行
-stock 内核，A 槽关键分区哈希均未改变。96 MiB 原厂模板候选截至本文更新时
-尚未实机启动。
+打断，不能用于判断 R30 是否能启动。该错误路径已停止。随后对 96 MiB 原厂
+模板候选进行了正式 `fastboot boot` 测试：设备持续黑屏且没有出现 ADB，用户
+约两分多钟后手动进入 fastboot；进入前瞬间观察到绿色小米 Logo。绿色现象
+只作为显示 handoff/旧 framebuffer 观察记录，不能据此认定显示驱动是根因。
+
+恢复后的 ramoops/pstore 明确记录：
+
+~~~text
+Linux version 6.12.69-android16-6-4k (kleaf@build-host)
+~~~
+
+因此 R30 Image 已真正获得执行权，boot 模板也不是本轮黑屏的直接解释。日志
+最后可辨识时间约为 10.72 秒，没有捕获明确 `Kernel panic`、Oops 或自动重启行；
+用户手动进入 fastboot 终止了后续观察。当前直接证据包括：
+
+- 原 `init_boot_a` 中 KernelSU LKM 报
+  `no symbol version for module_layout`，但日志继续推进，尚不能把它唯一确定为
+  本轮停止点；
+- `mi_memory_monitor.ko` 缺少
+  `__tracepoint_android_vh_mm_direct_reclaim_end` 并加载失败；
+- stock 运行时有 798 个 Android tracepoint，R30 输出有 790 个，stock 独有 8 个：
+  `cma_alloc_lat_start/end`、`dma_heap_buffer_alloc_lat_start/end`、
+  `f2fs_is_hiprio_task`、`f2fs_is_usr_task`、
+  `mm_direct_reclaim_start/end`；
+- 多个 SMMU TBU probe 失败，`arm-smmu` 出现 deferred-probe timeout/`-110`，
+  随后 QUP、GPI DMA、CCI 等设备等待 `15000000.apps-smmu` supplier。
+
+这与本文早期 vendor 模块不兼容导致显示、电源、存储和 SoC deferred probe、
+设备黑屏的模式一致，也与 R62 后来补齐 dma-heap、CMA、direct reclaim 等真实
+vendor hook 的记录一致。准确边界是：**R30 原样与当前小米 vendor/runtime 模块
+栈不兼容，无法进入 ADB；现有 pstore 尚不足以把唯一致命触发点定为 KernelSU、
+某一个缺失 hook 或 SMMU。**
+
+本轮也暴露流程偏差：阶段 B 的当前模块基线尚未完成，阶段 C 又沿用了带旧
+KernelSU LKM 的 `init_boot_a`，不符合“先模块闭合、无 KernelSU 控制”的设计。
+因此不继续直接测试 R30，也不在其上加入 Droidspaces 变量。恢复后设备运行 stock
+内核，`boot_a`、`init_boot_a`、`vendor_boot_a`、`dtbo_a`、`vbmeta_a` 哈希均与
+测试前一致。
 
 ### 阶段 D：Droidspaces 单变量递增
 

@@ -37,3 +37,22 @@ Kleaf 导出的 64 MiB `boot.img` 是通用 GKI 构建产物，不能直接视�
 候选仅允许在解锁 bootloader 上使用 `fastboot boot` 临时测试，禁止刷写。替换
 kernel 后无法保留有效的小米 AVB 加密签名；保留 `AVB0`/`AVBf` 外形不代表
 签名有效。
+
+### 2026-08-26 实机结果
+
+96 MiB 原厂模板候选已通过 `fastboot boot` 实机测试。设备持续黑屏且未出现
+ADB，用户随后手动进入 fastboot；进入前瞬间观察到绿色小米 Logo。恢复后的
+pstore 确认 R30 内核实际运行到至少约 10.72 秒，但没有捕获明确 panic/Oops。
+
+已确认的运行时不兼容包括：
+
+- 原 `init_boot_a` 中的 KernelSU 报 `no symbol version for module_layout`；
+- `mi_memory_monitor.ko` 因缺少
+  `__tracepoint_android_vh_mm_direct_reclaim_end` 加载失败；
+- stock 运行时 798 个 Android tracepoint 中有 8 个不在 R30 输出；
+- `arm_smmu`/TBU 出现 probe 失败与超时，随后多个设备等待
+  `apps-smmu` supplier。
+
+因此 R30 原样不能作为当前设备的可启动控制基线。绿色 Logo 只记录为显示
+handoff 现象，不能单独归因于显示驱动。A 槽关键分区哈希未改变，设备已恢复
+stock。
