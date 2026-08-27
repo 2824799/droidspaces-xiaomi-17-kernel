@@ -1,0 +1,9 @@
+variant=r30-stock-containers
+base_variant=r30-stock-compat
+current_stage=stage1-pid-ns
+current_stage_config=CONFIG_PID_NS=y
+current_stage_runtime=not_tested
+next_stage=sysvipc-posix-mqueue-kabi
+external_droidspaces_source=/home/nahida/agents/tmp/kernel-work/upstream/droidspaces-oss
+external_droidspaces_commit=0b8dbd4001f3ee7dc06e8d7376d19e9ffe79c96c
+external_droidspaces_patch_sha256=059db74ecf615273785f25c54b0b26f61cee9ea330d3b4787cdfd8172778eaad

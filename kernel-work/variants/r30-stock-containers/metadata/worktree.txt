@@ -1,0 +1,5 @@
+variant=r30-stock-containers
+created_utc=2026-08-27T13:56:55Z
+upstream=/home/nahida/agents/tmp/kernel-work/upstream/android16-6.12-2026-03-r30
+worktree=/home/nahida/agents/tmp/kernel-work/worktrees/r30-stock-containers
+patch_series_count=1

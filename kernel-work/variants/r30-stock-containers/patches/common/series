@@ -1,0 +1,7 @@
+0001-cma-dma-allocation-latency-hooks.patch
+0002-direct-reclaim-allocation-latency-hooks.patch
+0003-export-try-to-free-pages.patch
+0004-xiaomi-kmi-symbol-list.patch
+0005-pair-stock-system-dlkm-release.patch
+0006-trust-stock-system-dlkm-signing-key.patch
+0007-enable-pid-namespaces.patch

@@ -1,0 +1,5 @@
+repository=https://github.com/ravindu644/Droidspaces-OSS.git
+commit=0b8dbd4001f3ee7dc06e8d7376d19e9ffe79c96c
+patch_path=Documentation/resources/kernel-patches/GKI/kernel-6.12/001.GKI-6.12-or-above-fix_sysvipc_kabi.patch
+patch_blob=b5d1ffe635df2ab3457520ad740ebe23c25358e1
+patch_sha256=059db74ecf615273785f25c54b0b26f61cee9ea330d3b4787cdfd8172778eaad

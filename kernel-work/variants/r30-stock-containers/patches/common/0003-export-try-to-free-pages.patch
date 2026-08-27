@@ -1,0 +1,33 @@
+From 4faf781e81fc1f3d46a11f7329a02ec3c80a7432 Mon Sep 17 00:00:00 2001
+From: wudihui <wudihui@xiaomi.corp-partner.google.com>
+Date: Wed, 13 May 2026 16:17:08 +0800
+Subject: [PATCH] ANDROID: mm: Export try_to_free_pages supports proactive
+ memory reclamation.
+
+When the device is under low memory pressure, it judges whether to perform proactive memory reclamation according to watermark information. This pre-allocates memory in advance, reduces the memory allocation latency in core scenarios, and mitigates stuttering and frame drops.
+
+Bug: 514559198
+Bug: 506924601
+
+Change-Id: I04cbe3db0d85e137f98e3e93491355eea357271d
+Signed-off-by: wudihui <wudihui@xiaomi.corp-partner.google.com>
+(cherry picked from commit ef6696d4b74e207be236e62c82165a49931945e3)
+---
+ mm/vmscan.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 229bd0fa9c66..794f2af2a2d3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -6822,6 +6822,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 
+ 	return nr_reclaimed;
+ }
++EXPORT_SYMBOL_GPL(try_to_free_pages);
+ 
+ #ifdef CONFIG_MEMCG
+ 
+-- 
+2.55.0
+
