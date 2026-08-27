@@ -1,6 +1,6 @@
 # Droidspaces / 小米 17 内核适配完整归档
 
-归档整理日期：2026-08-25；最后更新：2026-08-26（Asia/Shanghai）
+归档整理日期：2026-08-25；最后更新：2026-08-27（Asia/Shanghai）
 
 本文是本项目唯一保留的技术文档，合并了 2026-08-21 至 2026-08-24 的构建、打包、KernelSU 配对、KMI/CRC 审计、实机启动、Wi-Fi/RFKILL、蜂窝/IMS 排查和设备恢复记录，并补充了 2026-08-26 的当前完整字库、小米公开源码依赖审计、第三方 Droidspaces 补丁路线和非官方 BL 解锁链信息。
 
@@ -11,15 +11,16 @@
 ### 1.1 最终结论
 
 - 设备为小米 17，型号 `25113PN0EC`，代号 `pudding`，平台 `Qualcomm SM8850 / canoe`；用户态为 Android 17 / HyperOS 4，内核基线属于 `android16-6` GKI 6.12.69。
-- 设备最终恢复到实验开始前的**原始 `boot_a` + 最初 KernelSU `init_boot_a`**基线，活动槽为 A。
+- 当前设备通过 `fastboot boot` 临时运行 R30 stock-compat 证书信任候选，活动槽为 A；`boot_a` 与 `init_boot_a` 均未在本轮写入。
 - slot B 的 `boot_b`、`init_boot_b`、`vendor_boot_b`、`dtbo_b` 备份均为全零，不是可用备用系统；整个项目不使用 slot B。
 - 本地 Kleaf/Bazel 构建链、原厂导出 CRC 恢复、`vendor_data_pad` 1024-byte/KABI 兼容机制和 466 个 vendor module 全量审计均已建立。
 - R62 自定义内核成功编译，466 个 vendor module 静态审计达到 0 mismatch、0 missing、0 unexported、0 provider conflict。
-- 用户实机确认 R62 能进入系统，相机、指纹、Wi-Fi 和蓝牙可用；不能再把 R62 描述为“全面不兼容”。当前已知的主要业务回归集中在 SIM/蜂窝注册、移动数据、IMS 和通话。
-- 静态通过没有转化为设备业务兼容：真正运行过的 R62 样本仍无法建立移动数据、IMS 注册和双卡通话。
-- 最直接、可复现的蜂窝分叉是：stock 会收到 Qualcomm DSI 的 `dsi_init_cb` 并创建 DSI handle；R62 始终没有收到或派发该回调。
+- 用户实机确认 R62 能进入系统，相机、指纹、Wi-Fi 和蓝牙可用，但该历史样本无法建立移动数据、IMS 注册和双卡通话。
+- 2026-08-27 的 R30 stock-compat 最终候选同时完成 release identity 与 stock module signing certificate 配对；运行模块数从失败候选的 579 恢复到 stock 的 670。
+- 自动验收确认 Wi-Fi、蓝牙、双卡语音/数据注册、两路 IMS 网络和蜂窝 Internet 网络均恢复；用户随后确认“现在好像所有东西都能用”。
+- 历史 R62 的 `dsi_init_cb` 分叉仍是有效旧证据，但不再代表当前 R30 stock-compat 候选的运行结果。
 - 唯一一次“最小 RFKILL 自定义内核下电话打通”的实验后来确认实际运行的是 stock Image，结论已撤回。
-- 当前没有“已修复、可长期安装或可直接刷写”的自定义候选。
+- 当前已有可作为后续容器配置基线的临时启动候选，但修改 kernel 后没有有效 Xiaomi AVB 签名，仍不能直接 flash 或视为长期安装包。
 
 ### 1.2 历史状态裁决规则
 
@@ -1324,10 +1325,10 @@ device boot test:           not run
 的提交，可作为更完整、版本关系更清晰的后续基线；但在实机测试前，不能把静态
 全绿等同于已解决黑屏。
 
-#### 2026-08-27 R30 兼容候选启动后射频全失效与 release 配对修复
+#### 2026-08-27 R30 兼容候选射频全失效的两层根因与最终修复
 
-上述四补丁候选后来通过 96 MiB stock 模板由 `fastboot boot` 成功进入 Android：
-`sys.boot_completed=1`、ADB、显示和主要 vendor 模块均正常。但 Wi-Fi、蓝牙、热点、
+四项官方补丁候选通过 96 MiB stock 模板由 fastboot boot 成功进入 Android：
+sys.boot_completed=1、ADB、显示和主要 vendor 模块均正常。但 Wi-Fi、蓝牙、热点、
 移动数据、电话和射频全部不可用。运行模块数为 579，stock 为 670，差 91 个。
 缺失集合正好包括：
 
@@ -1337,7 +1338,7 @@ cfg80211 mac80211 qca_cld3_peach_v2 rfkill
 wwan ppp_generic ppp_deflate ppp_mppe l2tp_ppp libarc4
 ~~~
 
-直接根因不是 CRC/KMI，而是 Android 查找 system_dlkm 的 release 目录失败：
+第一层根因不是 CRC/KMI，而是 Android 查找 system_dlkm 的 release 目录失败：
 
 ~~~text
 candidate uname -r:
@@ -1347,53 +1348,121 @@ stock system_dlkm directory and module vermagic:
 6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
 ~~~
 
-设备上不存在候选短 release 对应的 `system_dlkm/lib/modules` 目录，因此完整
-`modules.load` 树在加载前即被跳过。三棵 stock 模块树的扩展审查结果仍为零符号
+设备上不存在候选短 release 对应的 system_dlkm/lib/modules 目录，因此完整
+modules.load 树在加载前即被跳过。三棵 stock 模块树的扩展审查结果仍为零符号
 缺失、零 CRC mismatch、零 provider conflict、零 vermagic flag mismatch。开启
-`CONFIG_MODVERSIONS` 时，内核 `same_magic()` 比较会忽略 vermagic 的第一个 release
+CONFIG_MODVERSIONS 时，内核 same_magic() 比较会忽略 vermagic 的第一个 release
 字段，但 Android 用户态选择模块目录不会忽略它；这解释了“模块 ABI 可兼容但系统
 根本没有尝试加载”的表面矛盾。
 
-第一次加入 `common/workspace_status.json` 仍生成短 release。进一步检查发现构建机
-没有 `repo` 命令，构建脚本也没有传 `--repo_manifest`，Kleaf 的实际状态是：
+第一次加入 common/workspace_status.json 仍生成短 release。进一步检查发现构建机
+没有 repo 命令，构建脚本也没有传 --repo_manifest，Kleaf 的实际状态是：
 
 ~~~text
 STABLE_SCMVERSIONS {}
 ~~~
 
-构建脚本现已显式使用锁定的
-`/home/nahida/agents/tmp/kernel-work/source-locks/r30/checked-out-manifest.xml`，并在正式
-构建前验证 common SCMVERSION 非空。用全新 Bazel output root 隔离重建后：
+构建脚本随后显式使用锁定的
+/home/nahida/agents/tmp/kernel-work/source-locks/r30/checked-out-manifest.xml，并在正式
+构建前验证 common SCMVERSION 非空。release 配对候选变为：
 
 ~~~text
 kernel release:         6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
 Image SHA-256:          e2450f4f7ead1b1c9143f6d0af44aec293d0c7e039ec0ca276fb8550b7432ced
 vmlinux SHA-256:        40b23c7e82185190109e3d49a8d5be8911cfda562c83c96d5bae6fcfc3d4865f
-Module.symvers SHA-256: af77d02d0a3e1a7581e8cc416f3b05340364e6d3f3abc01cc2dfa119d09923ab
-vendor modules:         466 / 22474 imports / 0 issues
-boot size:              100663296 bytes
 boot SHA-256:           21ca6f1b7ecb6dd3b7831df98f29c807709775f8bee4df2a8fd2392952253a67
 ~~~
 
-新候选位于：
+该候选实机上已经能看到正确目录和 modules.load，但运行模块数仍为 579，射频故障
+完全不变。手工加载 libarc4.ko 得到最终决定性证据：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260827T121717Z-stock-release/boot-r30-stock-compat-stock-template.img
+modprobe: Failed to insmod .../libarc4.ko: Permission denied
+libarc4: exports protected symbol arc4_crypt
 ~~~
 
-结构审查与 vendor 模块审查已通过，且 kernel release 已与 stock system_dlkm 精确
-配对；截至记录时尚未重启设备测试。该镜像仍无有效小米 AVB 签名，只允许明确授权
-后的 `fastboot boot`，严禁 flash。
+因此 release 目录只是第一层。第二层、也是最终阻断，是模块签名信任：候选配置启用
+CONFIG_MODULE_SIG_PROTECT；stock system_dlkm 模块由 stock 构建证书签名，而本地
+候选的自动生成证书不同。模块并非因普通 KMI/CRC 检查失败，而是因为签名无法在候选
+内核的 trusted keyring 中验证，被视为不可信模块，不能导出 protected symbol。
+
+从原始 boot_a 内的 stock Image 提取到的公开 X.509 证书为：
+
+~~~text
+subject:     CN=Build time autogenerated kernel key
+serial:      4B2A816CD76DB5930B2A44680C9BAC6639C63607
+SHA-1 fp:    87:07:47:78:28:F3:32:AB:95:DA:D6:0B:29:2C:89:7E:C1:4D:2E:C1
+DER SHA-256: 64b16ac8cd1b016e297cf70c18d912dacc83f74f6c38b3c495f9b0b15a3c0aa2
+valid from:  2026-05-22 06:49:46 UTC
+valid until: 2126-04-28 06:49:46 UTC
+~~~
+
+该 serial 与 stock libarc4.ko 等 system_dlkm 模块的 sig_key 完全一致。第 6 个本地
+补丁只把此公开证书加入 CONFIG_SYSTEM_TRUSTED_KEYS；不包含、也不需要 Xiaomi 或
+构建服务器的私钥。最终 vmlinux 内建 keyring 静态提取出两个证书：本次构建自己的
+自动签名证书，以及上述 stock module 证书。实机 /proc/keys 也显示：
+
+~~~text
+.builtin_trusted_keys: 2
+~~~
+
+最终证书信任候选：
+
+~~~text
+kernel release:         6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
+Image SHA-256:          7c4c3f13a04ae5a63901f91b270070c0c8cd6d40a037ff042baa9d3386f71cdd
+vmlinux SHA-256:        e38f86eb5c1f5bda4382d255bd06f2d2ad8eb83d0578ebea6b4b9524b34c1a63
+Module.symvers SHA-256: af77d02d0a3e1a7581e8cc416f3b05340364e6d3f3abc01cc2dfa119d09923ab
+boot size:              100663296 bytes
+boot SHA-256:           aafd350bbd00a2c7a2267d04e3d1745b08aa6cf28938514cc80f7ea5fbdac71d
+~~~
+
+最终 boot：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260827T124841Z-stock-cert-v2/boot-r30-stock-compat-stock-template.img
+~~~
+
+使用 fastboot boot 临时启动后的自动验收：
+
+~~~text
+sys.boot_completed:                 1
+loaded modules:                     670（stock 也是 670）
+required radio modules missing:     0 / 15
+module signature rejections:        0
+Wi-Fi:                              enabled, wlan0 up, connected
+Bluetooth:                          enabled, wearable connected
+voice registration:                 both subscriptions IN_SERVICE
+IMS networks:                       2 x CONNECTED + VALIDATED
+cellular Internet network:          CONNECTED + VALIDATED
+~~~
+
+恢复加载的关键模块包括 bluetooth、hci_uart、btqca、btpower、bt_fm_swr、cfg80211、
+mac80211、qca_cld3_peach_v2、rfkill、wwan、ppp_generic、ppp_deflate、ppp_mppe、
+l2tp_ppp 和 libarc4。用户随后从界面侧确认当前“好像所有东西都能用”。自动流程没有
+主动拨号、发短信或切换热点，因此 outgoing call、SMS 和 hotspot 仍记录为 not_run，
+不能伪写成自动验收项。
+
+实机日志：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/logs/r30-stock-compat/device-tests/20260827T130221Z-stock-cert-device-test/
+~~~
+
+工程结论：当前可用基线是“R30 + 四项官方 R31 Xiaomi 兼容提交 + stock release
+identity + stock system_dlkm 公开签名证书”。后续容器配置必须从该基线复制为新
+variant，不得直接污染已经通过实机验收的 r30-stock-compat。该镜像仍无有效 Xiaomi
+AVB 签名，只允许 fastboot boot，严禁 flash。
 
 ### 阶段 D：Droidspaces 单变量递增
 
-只有阶段 C 的 SIM、数据和 IMS 正常后，才按顺序加入：
+阶段 C 已在 2026-08-27 达到 SIM、数据、IMS、Wi-Fi 与蓝牙的可用基线。下一步
+从该提交新建独立容器 variant，并按顺序加入：
 
 1. `PID_NS + IPC_NS`
 2. `SYSVIPC + POSIX_MQUEUE + KABI patch`
 3. `DEVTMPFS`
-4. `RFKILL`
-5. KernelSU，作为独立变量最后加入
+4. KernelSU 或其他额外运行时改动，作为独立变量最后加入
 
 每轮只改变一组变量，保存完整产物和启动日志。首个导致 `dsi_init_cb`、IMS 或移动数据回归的阶段，就是后续定位边界。
 

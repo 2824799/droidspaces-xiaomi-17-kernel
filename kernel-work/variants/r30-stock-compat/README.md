@@ -1,9 +1,10 @@
 # R30 stock compatibility variant
 
 该 variant 以只读上游 `android16-6.12-2026-03_r30` 为基线，只在独立 worktree
-应用 R31 中 4 个 Xiaomi 相关官方提交，并用第 5 个本地非功能补丁固定 stock
-`system_dlkm` 所需的 release identity。目标是同时匹配当前 stock 的
-`vendor_ramdisk` ABI 和 `system_dlkm` 模块目录，不修改 `kernel-work/upstream/`。
+应用 R31 中 4 个 Xiaomi 相关官方提交；第 5 个本地非功能补丁固定 stock
+`system_dlkm` 所需的 release identity；第 6 个本地补丁加入 stock system_dlkm
+模块使用的公开 X.509 签名证书。目标是同时匹配当前 stock 的 `vendor_ramdisk` ABI、
+`system_dlkm` 模块目录和模块签名信任，不修改 `kernel-work/upstream/`。
 
 ## 官方补丁链
 
@@ -14,6 +15,7 @@
 3. `4faf781e81fc`：导出 `try_to_free_pages`；
 4. `bc587ccd5d16`：更新 Xiaomi KMI symbol list。
 5. 本地 release pairing：设置 `SCMVERSION=-gb1493ec68d4a-abogki514973465`。
+6. 本地 certificate trust：将 stock module signing certificate 加入 trusted keyring。
 
 仅前两个补丁不会让新符号进入 trim 后的 `Module.symvers`；遗漏第三项时，第四项
 会触发 strict KMI 的 `try_to_free_pages` ksymtab 错误。不得使用空 hook 或伪造
@@ -32,7 +34,7 @@ JOBS=16 /home/nahida/agents/tmp/kernel-work/variants/r30-stock-compat/scripts/bu
 生成目录分别位于 `kernel-work/worktrees/`、`out/`、`logs/` 和 `artifacts/`，均不
 提交到本地 Git。
 
-## 2026-08-27 release 配对修复
+## 2026-08-27 release 与模块证书配对修复
 
 四项官方补丁候选能够启动 Android，但其 `uname -r` 为
 `6.12.69-android16-6-4k`。stock `system_dlkm` 模块位于：
@@ -50,11 +52,21 @@ vendor ramdisk、system_dlkm、vendor_dlkm 的扩展符号审查均无缺失或 
 脚本也没有把锁定 manifest 传给 Kleaf，实际生成的是
 `STABLE_SCMVERSIONS {}`。`build.sh` 现已显式传入
 `source-locks/r30/checked-out-manifest.xml`，并在构建前拒绝空的 common
-SCMVERSION。修复后的结果：
+SCMVERSION。release 修复后系统能找到目录，但模块仍因 `CONFIG_MODULE_SIG_PROTECT`
+拒绝 stock 证书签名的 protected exports：
+
+~~~text
+libarc4: exports protected symbol arc4_crypt
+~~~
+
+从 stock Image 提取的公开证书 serial 为
+`4B2A816CD76DB5930B2A44680C9BAC6639C63607`，DER SHA-256 为
+`64b16ac8cd1b016e297cf70c18d912dacc83f74f6c38b3c495f9b0b15a3c0aa2`。
+证书加入 `CONFIG_SYSTEM_TRUSTED_KEYS` 后，最终结果：
 
 ~~~text
 kernel release:         6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
-Image SHA-256:          e2450f4f7ead1b1c9143f6d0af44aec293d0c7e039ec0ca276fb8550b7432ced
+Image SHA-256:          7c4c3f13a04ae5a63901f91b270070c0c8cd6d40a037ff042baa9d3386f71cdd
 Module.symvers SHA-256: af77d02d0a3e1a7581e8cc416f3b05340364e6d3f3abc01cc2dfa119d09923ab
 modules audited:        466
 imports checked:        22474
@@ -63,7 +75,12 @@ CRC mismatch:           0
 provider conflict:      0
 audit_pass:             true
 boot size:              100663296 bytes
-boot SHA-256:           21ca6f1b7ecb6dd3b7831df98f29c807709775f8bee4df2a8fd2392952253a67
+boot SHA-256:           aafd350bbd00a2c7a2267d04e3d1745b08aa6cf28938514cc80f7ea5fbdac71d
+loaded modules:         670 / stock 670
+radio modules missing:  0 / 15
+Wi-Fi / Bluetooth:      connected / connected
+IMS networks:           2 connected and validated
+cellular Internet:      connected and validated
 ~~~
 
 本地重打包器已用旧 R30 Image 证明与已归档 MagiskBoot 输出逐字节相同。成品包含
@@ -71,8 +88,10 @@ boot SHA-256:           21ca6f1b7ecb6dd3b7831df98f29c807709775f8bee4df2a8fd23929
 
 ## 安全边界
 
-- release 配对前候选已启动，但射频模块树因目录名不匹配而未加载。
-- release 配对后的新候选尚未实机启动。
+- release 配对前候选因目录名不匹配跳过 system_dlkm。
+- 仅 release 配对候选又因 stock module certificate 不受信任而拒绝 protected exports。
+- release + certificate 最终候选已通过实机启动和被动无线/蜂窝验收。
+- 用户确认当前功能看起来全部可用；自动流程未拨号、发短信或切换热点。
 - KernelSU LKM 配对尚未通过。
 - 修改 kernel 后不具有有效小米 AVB 签名。
 - 只允许明确授权后的 `fastboot boot` 临时测试。

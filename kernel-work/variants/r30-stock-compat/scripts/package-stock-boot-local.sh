@@ -22,6 +22,8 @@ EXPECTED_STOCK_BOOT_SHA256="af83b83f63ae833b05d69b87b8e216c3a0bace798699080e799c
 EXPECTED_REFERENCE_IMAGE_SHA256="9888b71a440c6713f820fe4e1775f460bb9ae6272444bdeaba5039357ae59a24"
 EXPECTED_REFERENCE_BOOT_SHA256="b66b1d547142fcedea03b9d1b270a41b19eb7dd53b36dad1fba5d5413b7eb6e6"
 EXPECTED_KERNEL_RELEASE="6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k"
+EXPECTED_STOCK_MODULE_CERT_SERIAL="4B2A816CD76DB5930B2A44680C9BAC6639C63607"
+EXPECTED_STOCK_MODULE_CERT_SHA256="64b16ac8cd1b016e297cf70c18d912dacc83f74f6c38b3c495f9b0b15a3c0aa2"
 
 meta_value() {
   local key="$1" file="$2"
@@ -43,6 +45,15 @@ AUDIT_REPORT_DIR=$(meta_value report_dir "$AUDIT_META")
 [[ "$BUILD_KERNEL_RELEASE" == "$EXPECTED_KERNEL_RELEASE" ]] || {
   echo "Kernel release does not match stock system_dlkm: $BUILD_KERNEL_RELEASE" >&2
   exit 1
+}
+[[ "$(meta_value stock_module_signing_cert_trusted "$BUILD_META")" == yes ]] || {
+  echo "Build did not verify trust of the stock module signing certificate" >&2; exit 1;
+}
+[[ "$(meta_value stock_module_signing_cert_serial "$BUILD_META")" == "$EXPECTED_STOCK_MODULE_CERT_SERIAL" ]] || {
+  echo "Stock module signing certificate serial mismatch" >&2; exit 1;
+}
+[[ "$(meta_value stock_module_signing_cert_sha256 "$BUILD_META")" == "$EXPECTED_STOCK_MODULE_CERT_SHA256" ]] || {
+  echo "Stock module signing certificate hash mismatch" >&2; exit 1;
 }
 [[ "$(meta_value audit_pass "$AUDIT_META")" == yes ]] || { echo "Module audit has not passed" >&2; exit 1; }
 [[ "$(meta_value modules "$AUDIT_META")" == 466 ]] || { echo "Module audit did not cover 466 modules" >&2; exit 1; }
@@ -101,9 +112,11 @@ NOTICE
 
 cat > "$ARTIFACT_DIR/REVIEW-STATUS.txt" <<EOF_REVIEW
 variant=$VARIANT
-base=android16-6.12-2026-03_r30 plus four official R31 Xiaomi compatibility commits and one local release-identity pairing patch
+base=android16-6.12-2026-03_r30 plus four official R31 Xiaomi compatibility commits and two local pairing/trust patches
 kernel_release=$BUILD_KERNEL_RELEASE
 stock_system_dlkm_release_pairing_pass=yes
+stock_system_dlkm_signing_cert_trusted=yes
+stock_system_dlkm_signing_cert_serial=$EXPECTED_STOCK_MODULE_CERT_SERIAL
 vendor_module_audit_pass=yes
 vendor_modules_audited=466
 imports_checked=22474
@@ -139,6 +152,8 @@ candidate_sha=$(sha256sum "$CANDIDATE" | awk '{print $1}')
   printf 'input_image_sha256=%s\n' "$EXPECTED_IMAGE_SHA256"
   printf 'kernel_release=%s\n' "$BUILD_KERNEL_RELEASE"
   printf 'stock_system_dlkm_release_pairing_pass=yes\n'
+  printf 'stock_system_dlkm_signing_cert_trusted=yes\n'
+  printf 'stock_system_dlkm_signing_cert_serial=%s\n' "$EXPECTED_STOCK_MODULE_CERT_SERIAL"
   printf 'module_audit_pass=yes\n'
   printf 'module_audit_report=%s\n' "$AUDIT_REPORT_DIR"
   printf 'pack_method=local-deterministic-header-v4\n'
