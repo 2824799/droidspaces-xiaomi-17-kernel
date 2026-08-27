@@ -199,8 +199,9 @@ def main() -> int:
     }
     candidate_providers = {symbol: providers for symbol, providers in candidate_providers.items() if providers}
 
-    # Vendor-ramdisk modules load before system_dlkm. If both trees contain the
-    # same module name (for example zsmalloc), keep the vendor-ramdisk copy.
+    # Keep same-tree providers first. This is important for system_dlkm's own
+    # zram/zsmalloc pair; same-named copies in another partition are only
+    # fallback providers and must not replace the pair selected by modules.load.
     provider_by_name: dict[str, ModuleInfo] = {module.name: module for module in modules}
     for directory in args.provider_modules_dir:
         for path in directory.rglob("*.ko"):
@@ -214,6 +215,7 @@ def main() -> int:
             vendor_providers[symbol].append((crc, module.name))
 
     vmlinux_symbols = load_vmlinux_symbols(args.vmlinux)
+    imports = []
     issues = []
     status_counts: collections.Counter[str] = collections.Counter()
     modules_with_issues: set[str] = set()
@@ -238,21 +240,21 @@ def main() -> int:
                 else:
                     status = "ok"
             status_counts[status] += 1
+            record = {
+                "module": module.name,
+                "file": str(module.path),
+                "symbol": symbol,
+                "status": status,
+                "expected_crc": f"0x{expected_crc:08x}",
+                "selected_crc": "" if selected_crc is None else f"0x{selected_crc:08x}",
+                "selected_provider": selected_provider,
+                "kernel_providers": kernel_options,
+                "vendor_providers": vendor_options,
+            }
+            imports.append(record)
             if status != "ok":
                 modules_with_issues.add(module.name)
-                issues.append(
-                    {
-                        "module": module.name,
-                        "file": str(module.path),
-                        "symbol": symbol,
-                        "status": status,
-                        "expected_crc": f"0x{expected_crc:08x}",
-                        "selected_crc": "" if selected_crc is None else f"0x{selected_crc:08x}",
-                        "selected_provider": selected_provider,
-                        "kernel_providers": kernel_options,
-                        "vendor_providers": vendor_options,
-                    }
-                )
+                issues.append(record)
 
     release_mismatch = [
         module.name
@@ -291,6 +293,24 @@ def main() -> int:
                 + "\n"
             )
     (args.report_dir / "issues.json").write_text(json.dumps(issues, indent=2, sort_keys=True) + "\n")
+    with (args.report_dir / "imports.tsv").open("w") as stream:
+        stream.write("module\tsymbol\tstatus\texpected_crc\tselected_crc\tselected_provider\tfile\n")
+        for record in imports:
+            stream.write(
+                "\t".join(
+                    str(record[key])
+                    for key in (
+                        "module",
+                        "symbol",
+                        "status",
+                        "expected_crc",
+                        "selected_crc",
+                        "selected_provider",
+                        "file",
+                    )
+                )
+                + "\n"
+            )
     (args.report_dir / "release-mismatch-modules.txt").write_text("\n".join(sorted(release_mismatch)) + "\n")
     (args.report_dir / "flag-mismatch-modules.txt").write_text("\n".join(sorted(flag_mismatch)) + "\n")
 

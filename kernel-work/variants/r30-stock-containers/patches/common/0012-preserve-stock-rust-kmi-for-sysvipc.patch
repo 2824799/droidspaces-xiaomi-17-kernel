@@ -1,0 +1,59 @@
+From 31b0dfb101e3d8fd35f14e47a1d79ea9d3df0d05 Mon Sep 17 00:00:00 2001
+From: Codex local builder <codex@local.invalid>
+Date: Fri, 28 Aug 2026 06:54:03 +0800
+Subject: [PATCH] LOCAL: preserve stock Rust KMI with SYSVIPC
+
+Keep the real C task_struct SYSVIPC state enabled while hiding the added SYSVIPC-only layout from bindgen. This preserves the stock Rust task_struct bindings, anonymous union numbering, and symbol CRCs required by the stock rust_binder.ko consumer.
+
+The change does not hide the fields from normal C compilation and does not alter the real task_struct layout.
+
+Change-Id: I75384eaa5cd371b25a81d89ba8a4f7666e2222aa
+---
+ include/linux/sched.h     | 3 ++-
+ include/linux/sem_types.h | 2 +-
+ include/linux/shm.h       | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 0f68c8bc8abc..f9146334a889 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -866,7 +866,8 @@ struct task_struct {
+ 	int				normal_prio;
+ 	unsigned int			rt_priority;
+ 
+-#ifdef CONFIG_SYSVIPC
++#if defined(CONFIG_SYSVIPC) && !defined(__BINDGEN__)
++	/* Preserve the pre-SYSVIPC Rust task_struct binding and symbol CRCs. */
+ 	union {
+ 		char __kabi_ignored_0;
+ 		struct sysv_sem			sysvsem;
+diff --git a/include/linux/sem_types.h b/include/linux/sem_types.h
+index 73df1971a7ae..9f01fb647d7b 100644
+--- a/include/linux/sem_types.h
++++ b/include/linux/sem_types.h
+@@ -5,7 +5,7 @@
+ struct sem_undo_list;
+ 
+ struct sysv_sem {
+-#ifdef CONFIG_SYSVIPC
++#if defined(CONFIG_SYSVIPC) && !defined(__BINDGEN__)
+ 	struct sem_undo_list *undo_list;
+ #endif
+ };
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index 1d3d3ae958fb..270ceb12fc57 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -9,7 +9,7 @@
+ struct file;
+ struct task_struct;
+ 
+-#ifdef CONFIG_SYSVIPC
++#if defined(CONFIG_SYSVIPC) && !defined(__BINDGEN__)
+ struct sysv_shm {
+ 	struct list_head shm_clist;
+ };
+-- 
+2.55.0
+

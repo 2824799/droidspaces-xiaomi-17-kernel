@@ -1,11 +1,11 @@
-# R30 Droidspaces container-stage variant
+# R30 Droidspaces container variant
 
-本目录从已通过实机无线/蜂窝验收的 `r30-stock-compat` 独立复制而来，不修改原始
-`kernel-work/upstream/`，也不污染 `r30-stock-compat`。
+本目录从已通过实机无线/蜂窝验收的 `r30-stock-compat` 独立复制而来，不修改
+`kernel-work/upstream/`，也不污染已验收的 `r30-stock-compat`。
 
-## 当前阶段
+## 配置边界
 
-最小容器配置阶段已全部启用：
+已启用：
 
 ```text
 CONFIG_PID_NS=y
@@ -15,13 +15,16 @@ CONFIG_POSIX_MQUEUE=y
 CONFIG_DEVTMPFS=y
 ```
 
-R30 的 Kconfig 默认值本来就是 `y`，但 GKI defconfig 显式写了
-`# CONFIG_PID_NS is not set`，所以 PID namespace 补丁只删除该覆盖项。
-`CONFIG_IPC_NS` 依赖 `SYSVIPC || POSIX_MQUEUE`，在后两项启用后由 Kconfig
-自动取默认值 `y`，没有向 defconfig 写入冗余项。
+刻意保持关闭：
 
-SYSVIPC 的 `sysvsem`/`sysvshm` 被放入 `task_struct` 中原有的 28 字节
-对齐空洞。最终 DWARF 布局保持：
+```text
+CONFIG_DEVTMPFS_MOUNT=n
+CONFIG_USER_NS=n
+CONFIG_CGROUP_DEVICE=n
+```
+
+SYSVIPC 的 `sysvsem`/`sysvshm` 使用 `task_struct` 原有 28 字节对齐空洞，
+真实 C 布局保持：
 
 ```text
 sizeof(task_struct)=5184
@@ -31,45 +34,64 @@ sysvshm=172
 sched_entity(se)=192
 ```
 
-`rust_binder.ko` 所需的真实 `init_ipc_ns` 和 `put_ipc_ns` 已导出，但没有
-加入公开稳定 GKI KMI symbol list。ABI snapshot 由官方
-`//common:kernel_aarch64_abi_update` 目标生成，没有手工写 ABI 或 CRC。
+`init_ipc_ns` 和 `put_ipc_ns` 使用真实导出，没有加入公开稳定 GKI symbol
+list；没有伪造 CRC，也没有关闭 MODVERSIONS 或 strict KMI。
 
-刻意保持关闭：
+## 首版实机测试与 Rust KMI 漏审
 
-```text
-CONFIG_DEVTMPFS_MOUNT
-CONFIG_USER_NS
-CONFIG_CGROUP_DEVICE
-```
+首版候选通过 `fastboot boot` 临时启动，约 15 秒恢复 ADB，Android 完成启动。
+无线/蜂窝关键模块、蓝牙、双卡注册、cellular/IMS 网络和容器能力 smoke test 均
+通过；PID、IPC namespace、SYSVIPC、mqueue 和 devtmpfs 均可实际使用。
 
-## 构建结果
+但首版只加载了 669/670 个 stock 模块，唯一缺少 `rust_binder.ko`。手工加载时
+出现 19 个 Rust export CRC mismatch 和 2 个旧 Rust mangled symbol 缺失。根因是
+`CONFIG_SYSVIPC` 新布局被 bindgen 看见，改变了 Rust `task_struct` binding 和匿名
+union 编号；此前 466 模块审查只把 `system_dlkm` 当 provider，没有把其中的
+`rust_binder.ko` 当 consumer，因此漏审。
 
-最终阶段已完成 strict KMI 构建、stock release/certificate 检查和 466 个 vendor
-ramdisk 模块审计。候选尚未进行手机实机启动测试。
-
-```text
-Image SHA-256: 460c4ee4d025bb9fa042068c5ebc8418d1882079529f4951509b8d90bce97232
-Image size:   42166784 bytes
-kernel release: 6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
-modules audited: 466
-imports checked: 22474
-missing/crc/provider conflicts: 0/0/0
-strict ABI/KMI build: pass
-```
-
-对应产物目录：
+`0012` 让新增 SYSVIPC 布局只对 bindgen 隐藏，正常 C 编译仍保留真实字段；
+`0013` 再由官方 `//common:kernel_aarch64_abi_update` 重建 ABI snapshot。相对
+stock-compatible 基线的最终 `Module.symvers` 结果为：
 
 ```text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers/
+old symbols: 10351
+new symbols: 10353
+added:       init_ipc_ns, put_ipc_ns
+removed:     0
+CRC changed: 0
 ```
 
-下一步打包候选只允许 `fastboot boot` 临时启动；在获得明确实机测试授权前不重启、
-不刷写、不操作当前正常工作的手机。
+## 修复后正式候选
+
+strict ABI/KMI 构建、证书/release 检查和扩展 consumer 审查均通过：
+
+```text
+kernel release:              6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
+Image SHA-256:               8dd40a7250932fd94f7023be68c624522da9983783c4236be4ff4d9824a1d284
+Image size:                  42166784
+vendor modules/imports:      466 / 22474
+system_dlkm modules/imports: 103 / 5816
+total modules/imports:       569 / 28290
+stock rust_binder imports:   234, all matched
+missing/CRC/provider:        0/0/0
+strict ABI/KMI:              pass
+```
+
+产物：
+
+```text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T230746Z-rust-kmi-fixed/
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T232346Z-rust-kmi-fixed-stock-template/boot-r30-stock-containers-stock-template.img
+boot size:    100663296
+boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
+```
+
+修复后候选尚未实机复测。它没有有效 Xiaomi AVB 签名，只允许
+`fastboot boot` 临时测试，禁止 flash，禁止使用 slot B。
 
 ## 补丁顺序
 
-当前 `patches/common/series` 包含原有 6 个兼容补丁和：
+`patches/common/series` 在 6 个 stock 兼容补丁之后包含：
 
 ```text
 0007-enable-pid-namespaces.patch
@@ -77,7 +99,8 @@ strict ABI/KMI build: pass
 0009-export-ipc-namespace-symbols.patch
 0010-update-gki-abi-for-container-ipc-state.patch
 0011-enable-devtmpfs.patch
+0012-preserve-stock-rust-kmi-for-sysvipc.patch
+0013-update-abi-after-rust-kmi-preservation.patch
 ```
 
-最小配置补丁链已经完成。下一步是独立的实机 `fastboot boot` 验收；该步骤
-尚未执行，不能用静态审查结果代替无线、蜂窝和容器生命周期测试。
+静态审查不能代替修复后候选的实机启动、完整模块加载和容器生命周期验收。

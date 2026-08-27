@@ -1,0 +1,608 @@
+From f50fc0dbfa25954b66605c129abf0861dff48d20 Mon Sep 17 00:00:00 2001
+From: Codex local builder <codex@local.invalid>
+Date: Fri, 28 Aug 2026 07:06:13 +0800
+Subject: [PATCH] LOCAL: update ABI after preserving stock Rust KMI
+
+Regenerate gki/aarch64/abi.stg with the official //common:kernel_aarch64_abi_update target after isolating SYSVIPC-only C layout from bindgen.
+
+The update removes the accidental Rust task_struct and anonymous-union ABI drift from the prior snapshot while retaining the real C SYSVIPC layout and the init_ipc_ns/put_ipc_ns exports. The update target exits 4 because it reports the corrected ABI delta, as documented by Kleaf.
+
+Change-Id: I4f1278f5b6d743498e3329c702cda2fd07d56f41
+---
+ gki/aarch64/abi.stg | 273 +++++++++++++++-----------------------------
+ 1 file changed, 89 insertions(+), 184 deletions(-)
+
+diff --git a/gki/aarch64/abi.stg b/gki/aarch64/abi.stg
+index b79636738055..0d722b130f50 100644
+--- a/gki/aarch64/abi.stg
++++ b/gki/aarch64/abi.stg
+@@ -33023,11 +33023,6 @@ pointer_reference {
+   kind: POINTER
+   pointee_type_id: 0xf7874bee
+ }
+-pointer_reference {
+-  id: 0x37734437
+-  kind: POINTER
+-  pointee_type_id: 0xf78df641
+-}
+ pointer_reference {
+   id: 0x377637b8
+   kind: POINTER
+@@ -52312,6 +52307,11 @@ member {
+   name: "_80"
+   type_id: 0x312fa971
+ }
++member {
++  id: 0x97086243
++  name: "__0"
++  type_id: 0xb111ced7
++}
+ member {
+   id: 0x970c579a
+   name: "__0"
+@@ -52332,11 +52332,6 @@ member {
+   name: "__0"
+   type_id: 0x8d66a704
+ }
+-member {
+-  id: 0x9739bb93
+-  name: "__0"
+-  type_id: 0x80c81e89
+-}
+ member {
+   id: 0x9747d6be
+   name: "__0"
+@@ -52347,11 +52342,6 @@ member {
+   name: "__0"
+   type_id: 0xeb537b7a
+ }
+-member {
+-  id: 0x975bcd09
+-  name: "__0"
+-  type_id: 0xe2be84d5
+-}
+ member {
+   id: 0x9765fc81
+   name: "__0"
+@@ -52447,11 +52437,6 @@ member {
+   name: "__0"
+   type_id: 0x3c901179
+ }
+-member {
+-  id: 0x9786cc53
+-  name: "__0"
+-  type_id: 0x3fbfdea4
+-}
+ member {
+   id: 0x97871ea5
+   name: "__0"
+@@ -52492,6 +52477,11 @@ member {
+   name: "__0"
+   type_id: 0x367abe20
+ }
++member {
++  id: 0x978ff8fe
++  name: "__0"
++  type_id: 0x368b737f
++}
+ member {
+   id: 0x97916214
+   name: "__0"
+@@ -54022,6 +54012,11 @@ member {
+   name: "__0"
+   type_id: 0x607f8710
+ }
++member {
++  id: 0x97db6e16
++  name: "__0"
++  type_id: 0x621d9b10
++}
+ member {
+   id: 0x97de7d14
+   name: "__0"
+@@ -54037,6 +54032,11 @@ member {
+   name: "__0"
+   type_id: 0x59b47c15
+ }
++member {
++  id: 0x97e5b752
++  name: "__0"
++  type_id: 0x5cc4dffd
++}
+ member {
+   id: 0x97e5ca87
+   name: "__0"
+@@ -54047,11 +54047,6 @@ member {
+   name: "__0"
+   type_id: 0x50096011
+ }
+-member {
+-  id: 0x97eca9a9
+-  name: "__0"
+-  type_id: 0x55da244c
+-}
+ member {
+   id: 0x97fda5b3
+   name: "__0"
+@@ -54418,6 +54413,11 @@ member {
+   type_id: 0xb3823078
+   offset: 576
+ }
++member {
++  id: 0xaa79a8e9
++  name: "__bindgen_anon_1"
++  type_id: 0xb301c0c6
++}
+ member {
+   id: 0xaa7b0c1a
+   name: "__bindgen_anon_1"
+@@ -54492,6 +54492,11 @@ member {
+   name: "__bindgen_anon_1"
+   type_id: 0x6a98a8fc
+ }
++member {
++  id: 0xaaa07fcb
++  name: "__bindgen_anon_1"
++  type_id: 0x6ad6e2fc
++}
+ member {
+   id: 0xaaa0d408
+   name: "__bindgen_anon_1"
+@@ -54514,21 +54519,16 @@ member {
+   type_id: 0x6471e7e4
+ }
+ member {
+-  id: 0xaab30558
++  id: 0xaab300e6
+   name: "__bindgen_anon_1"
+   type_id: 0x79a5ba10
+-  offset: 1312
++  offset: 27392
+ }
+ member {
+   id: 0xaab79811
+   name: "__bindgen_anon_1"
+   type_id: 0x7d3138f7
+ }
+-member {
+-  id: 0xaab8c6cc
+-  name: "__bindgen_anon_1"
+-  type_id: 0x726fe54d
+-}
+ member {
+   id: 0xaaba180c
+   name: "__bindgen_anon_1"
+@@ -54598,11 +54598,6 @@ member {
+   type_id: 0x0309d511
+   offset: 128
+ }
+-member {
+-  id: 0xaacabfa4
+-  name: "__bindgen_anon_1"
+-  type_id: 0x00168d1c
+-}
+ member {
+   id: 0xaacb9abb
+   name: "__bindgen_anon_1"
+@@ -54724,6 +54719,11 @@ member {
+   type_id: 0x0683cfd3
+   offset: 32
+ }
++member {
++  id: 0xc5160f20
++  name: "__bindgen_anon_2"
++  type_id: 0x1d11f9e0
++}
+ member {
+   id: 0xc51cb930
+   name: "__bindgen_anon_2"
+@@ -54762,11 +54762,6 @@ member {
+   name: "__bindgen_anon_2"
+   type_id: 0x4fa07fa2
+ }
+-member {
+-  id: 0xc5549dc6
+-  name: "__bindgen_anon_2"
+-  type_id: 0x5f831f99
+-}
+ member {
+   id: 0xc55a4d24
+   name: "__bindgen_anon_2"
+@@ -54784,12 +54779,6 @@ member {
+   type_id: 0x64a0817e
+   offset: 160
+ }
+-member {
+-  id: 0xc5734511
+-  name: "__bindgen_anon_2"
+-  type_id: 0x7859edda
+-  offset: 1376
+-}
+ member {
+   id: 0xc574e762
+   name: "__bindgen_anon_2"
+@@ -54852,6 +54841,11 @@ member {
+   name: "__bindgen_anon_2"
+   type_id: 0xa4a169a2
+ }
++member {
++  id: 0xc5c4ed1d
++  name: "__bindgen_anon_2"
++  type_id: 0xcff3c4ff
++}
+ member {
+   id: 0xc5c8aa87
+   name: "__bindgen_anon_2"
+@@ -54886,11 +54880,6 @@ member {
+   type_id: 0xf9b60183
+   offset: 2624
+ }
+-member {
+-  id: 0xc5f2b817
+-  name: "__bindgen_anon_2"
+-  type_id: 0xf9a6cea8
+-}
+ member {
+   id: 0xc5f5dfae
+   name: "__bindgen_anon_2"
+@@ -54903,17 +54892,17 @@ member {
+   type_id: 0x41f616f1
+   offset: 1408
+ }
+-member {
+-  id: 0x0412e2af
+-  name: "__bindgen_anon_3"
+-  type_id: 0x5958b2ef
+-}
+ member {
+   id: 0x04305685
+   name: "__bindgen_anon_3"
+   type_id: 0x7beb8705
+   offset: 1024
+ }
++member {
++  id: 0x043ccb8d
++  name: "__bindgen_anon_3"
++  type_id: 0x7771908b
++}
+ member {
+   id: 0x0473e01a
+   name: "__bindgen_anon_3"
+@@ -54946,12 +54935,6 @@ member {
+   type_id: 0x872e09ea
+   offset: 128
+ }
+-member {
+-  id: 0x04f18511
+-  name: "__bindgen_anon_3"
+-  type_id: 0xba33795e
+-  offset: 27392
+-}
+ member {
+   id: 0x04f28265
+   name: "__bindgen_anon_3"
+@@ -54959,14 +54942,14 @@ member {
+   offset: 1280
+ }
+ member {
+-  id: 0x6e1fb70f
++  id: 0x6e0f7c7e
+   name: "__bindgen_anon_4"
+-  type_id: 0x9a1289bb
++  type_id: 0x8ad9f872
+ }
+ member {
+-  id: 0x6e4da4fd
++  id: 0x6e1fb70f
+   name: "__bindgen_anon_4"
+-  type_id: 0xc8017b8b
++  type_id: 0x9a1289bb
+ }
+ member {
+   id: 0x6e7345e3
+@@ -55010,6 +54993,12 @@ member {
+   name: "__bindgen_anon_7"
+   type_id: 0x9f956530
+ }
++member {
++  id: 0xa8257da8
++  name: "__bindgen_padding_0"
++  type_id: 0x30b141d7
++  offset: 1344
++}
+ member {
+   id: 0xa838ed44
+   name: "__bindgen_padding_0"
+@@ -55106,12 +55095,6 @@ member {
+   type_id: 0xd4bacb77
+   offset: 928
+ }
+-member {
+-  id: 0xa8f381b7
+-  name: "__bindgen_padding_0"
+-  type_id: 0xe64d3a13
+-  offset: 1536
+-}
+ member {
+   id: 0xe943b4fc
+   name: "__bindgen_padding_1"
+@@ -55639,21 +55622,11 @@ member {
+   name: "__kabi_ignored_0"
+   type_id: 0x384f7d7c
+ }
+-member {
+-  id: 0x821faf8e
+-  name: "__kabi_ignored_0"
+-  type_id: 0x2d2f93e0
+-}
+ member {
+   id: 0xc44b7684
+   name: "__kabi_ignored_1"
+   type_id: 0x384f7d7c
+ }
+-member {
+-  id: 0xc45e166a
+-  name: "__kabi_ignored_1"
+-  type_id: 0x2d2f93e0
+-}
+ member {
+   id: 0x0e6698fa
+   name: "__kabi_renamedh_nr_queued"
+@@ -223922,11 +223895,6 @@ member {
+   name: "shm_clist"
+   type_id: 0xd3c80119
+ }
+-member {
+-  id: 0x8b98937c
+-  name: "shm_clist"
+-  type_id: 0x070c8f33
+-}
+ member {
+   id: 0x635a86b4
+   name: "shm_ctlall"
+@@ -238326,21 +238294,11 @@ member {
+   name: "sysvsem"
+   type_id: 0xd4961c7e
+ }
+-member {
+-  id: 0xf9670093
+-  name: "sysvsem"
+-  type_id: 0x80511c7e
+-}
+ member {
+   id: 0xec0fa93a
+   name: "sysvshm"
+   type_id: 0xae52fabd
+ }
+-member {
+-  id: 0xecbf1f9f
+-  name: "sysvshm"
+-  type_id: 0x1ee45f3b
+-}
+ member {
+   id: 0x673a3ad5
+   name: "sz"
+@@ -250502,11 +250460,6 @@ member {
+   type_id: 0x1a3a7059
+   offset: 512
+ }
+-member {
+-  id: 0x99422daf
+-  name: "undo_list"
+-  type_id: 0x37734437
+-}
+ member {
+   id: 0x994bbfb7
+   name: "undo_list"
+@@ -278884,35 +278837,35 @@ struct_union {
+   }
+ }
+ struct_union {
+-  id: 0x00168d1c
++  id: 0xb301c0c6
+   kind: STRUCT
+-  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_1>"
++  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_1>"
+   definition {
+-    member_id: 0x9786cc53
++    member_id: 0x97086243
+   }
+ }
+ struct_union {
+-  id: 0xf9a6cea8
++  id: 0xcff3c4ff
+   kind: STRUCT
+-  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_2>"
++  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_2>"
+   definition {
+-    member_id: 0x97eca9a9
++    member_id: 0x978ff8fe
+   }
+ }
+ struct_union {
+-  id: 0x5958b2ef
++  id: 0x7771908b
+   kind: STRUCT
+-  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_3>"
++  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_3>"
+   definition {
+-    member_id: 0x975bcd09
++    member_id: 0x97db6e16
+   }
+ }
+ struct_union {
+-  id: 0xc8017b8b
++  id: 0x8ad9f872
+   kind: STRUCT
+-  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_4>"
++  name: "bindings::bindings_raw::__BindgenUnionField<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_4>"
+   definition {
+-    member_id: 0x9739bb93
++    member_id: 0x97e5b752
+   }
+ }
+ struct_union {
+@@ -287592,14 +287545,6 @@ struct_union {
+     member_id: 0x16c5cb1d
+   }
+ }
+-struct_union {
+-  id: 0xf78df641
+-  kind: STRUCT
+-  name: "bindings::bindings_raw::sem_undo_list"
+-  definition {
+-    member_id: 0x16c5cb1d
+-  }
+-}
+ struct_union {
+   id: 0x209af29b
+   kind: STRUCT
+@@ -288231,24 +288176,6 @@ struct_union {
+     member_id: 0xac55312a
+   }
+ }
+-struct_union {
+-  id: 0x80511c7e
+-  kind: STRUCT
+-  name: "bindings::bindings_raw::sysv_sem"
+-  definition {
+-    bytesize: 8
+-    member_id: 0x99422daf
+-  }
+-}
+-struct_union {
+-  id: 0x1ee45f3b
+-  kind: STRUCT
+-  name: "bindings::bindings_raw::sysv_shm"
+-  definition {
+-    bytesize: 16
+-    member_id: 0x8b98937c
+-  }
+-}
+ struct_union {
+   id: 0xe94775da
+   kind: STRUCT
+@@ -288337,9 +288264,7 @@ struct_union {
+     member_id: 0x02592368
+     member_id: 0x8e1ee4e7
+     member_id: 0x017467b0
+-    member_id: 0xaab30558
+-    member_id: 0xc5734511
+-    member_id: 0xa8f381b7
++    member_id: 0xa8257da8
+     member_id: 0x1c8bedf9
+     member_id: 0x4fa2c1bd
+     member_id: 0x46909f39
+@@ -288531,7 +288456,7 @@ struct_union {
+     member_id: 0xed61f47f
+     member_id: 0xd6603513
+     member_id: 0x9a11b83a
+-    member_id: 0x04f18511
++    member_id: 0xaab300e6
+     member_id: 0xb10d1054
+     member_id: 0xf0cdaefa
+     member_id: 0x0482c094
+@@ -288546,51 +288471,31 @@ struct_union {
+   id: 0x79a5ba10
+   kind: UNION
+   name: "bindings::bindings_raw::task_struct__bindgen_ty_1"
+-  definition {
+-    bytesize: 8
+-    member_id: 0x821faf8e
+-    member_id: 0xf9670093
+-  }
+-}
+-struct_union {
+-  id: 0x7859edda
+-  kind: UNION
+-  name: "bindings::bindings_raw::task_struct__bindgen_ty_2"
+-  definition {
+-    bytesize: 16
+-    member_id: 0xc45e166a
+-    member_id: 0xecbf1f9f
+-  }
+-}
+-struct_union {
+-  id: 0xba33795e
+-  kind: UNION
+-  name: "bindings::bindings_raw::task_struct__bindgen_ty_3"
+   definition {
+     bytesize: 8
+     member_id: 0x32aa5f08
+-    member_id: 0xaab8c6cc
+-    member_id: 0xc5549dc6
++    member_id: 0xaaa07fcb
++    member_id: 0xc5160f20
+   }
+ }
+ struct_union {
+-  id: 0x726fe54d
++  id: 0x6ad6e2fc
+   kind: STRUCT
+-  name: "bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_1"
++  name: "bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_1"
+   definition {
+     bytesize: 8
+     member_id: 0x4140fd5c
+   }
+ }
+ struct_union {
+-  id: 0x5f831f99
++  id: 0x1d11f9e0
+   kind: STRUCT
+-  name: "bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2"
++  name: "bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2"
+   definition {
+-    member_id: 0xaacabfa4
+-    member_id: 0xc5f2b817
+-    member_id: 0x0412e2af
+-    member_id: 0x6e4da4fd
++    member_id: 0xaa79a8e9
++    member_id: 0xc5c4ed1d
++    member_id: 0x043ccb8d
++    member_id: 0x6e0f7c7e
+     member_id: 0xebbd65b6
+   }
+ }
+@@ -294142,30 +294047,30 @@ struct_union {
+   }
+ }
+ struct_union {
+-  id: 0x3fbfdea4
++  id: 0xb111ced7
+   kind: STRUCT
+-  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_1>"
++  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_1>"
+   definition {
+   }
+ }
+ struct_union {
+-  id: 0x55da244c
++  id: 0x368b737f
+   kind: STRUCT
+-  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_2>"
++  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_2>"
+   definition {
+   }
+ }
+ struct_union {
+-  id: 0xe2be84d5
++  id: 0x621d9b10
+   kind: STRUCT
+-  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_3>"
++  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_3>"
+   definition {
+   }
+ }
+ struct_union {
+-  id: 0x80c81e89
++  id: 0x5cc4dffd
+   kind: STRUCT
+-  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_3__bindgen_ty_2__bindgen_ty_4>"
++  name: "core::marker::PhantomData<bindings::bindings_raw::task_struct__bindgen_ty_1__bindgen_ty_2__bindgen_ty_4>"
+   definition {
+   }
+ }
+-- 
+2.55.0
+

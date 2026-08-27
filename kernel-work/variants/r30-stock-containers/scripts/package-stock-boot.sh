@@ -37,15 +37,25 @@ AUDIT_REPORT_DIR=$(meta_value report_dir "$AUDIT_META")
 [[ -n "$EXPECTED_IMAGE_SHA256" ]] || { echo "Missing image_sha256 in build metadata" >&2; exit 1; }
 [[ "$(meta_value variant "$BUILD_META")" == "$VARIANT" ]] || { echo "Build metadata variant mismatch" >&2; exit 1; }
 [[ "$(meta_value audit_pass "$AUDIT_META")" == yes ]] || { echo "Module audit has not passed" >&2; exit 1; }
-[[ "$(meta_value modules "$AUDIT_META")" == 466 ]] || { echo "Module audit did not cover 466 modules" >&2; exit 1; }
-for key in missing crc_mismatch provider_conflict present_unexported flag_mismatch_modules; do
-  [[ "$(meta_value "$key" "$AUDIT_META")" == 0 ]] || { echo "Module audit gate failed: $key" >&2; exit 1; }
+[[ "$(meta_value vendor_modules "$AUDIT_META")" == 466 ]] || { echo "Vendor audit did not cover 466 modules" >&2; exit 1; }
+[[ "$(meta_value system_dlkm_modules "$AUDIT_META")" == 103 ]] || { echo "system_dlkm audit did not cover 103 modules" >&2; exit 1; }
+[[ "$(meta_value total_modules "$AUDIT_META")" == 569 ]] || { echo "Combined audit did not cover 569 modules" >&2; exit 1; }
+[[ "$(meta_value total_imports "$AUDIT_META")" == 28290 ]] || { echo "Combined import coverage changed" >&2; exit 1; }
+[[ "$(meta_value rust_binder_imports "$AUDIT_META")" == 234 ]] || { echo "rust_binder import coverage changed" >&2; exit 1; }
+[[ "$(meta_value rust_binder_bad_imports "$AUDIT_META")" == 0 ]] || { echo "rust_binder has incompatible imports" >&2; exit 1; }
+[[ "$(meta_value rust_binder_audit_pass "$AUDIT_META")" == yes ]] || { echo "rust_binder audit did not pass" >&2; exit 1; }
+for prefix in vendor system_dlkm; do
+  for key in missing crc_mismatch provider_conflict present_unexported flag_mismatch_modules; do
+    [[ "$(meta_value "${prefix}_$key" "$AUDIT_META")" == 0 ]] || { echo "Module audit gate failed: ${prefix}_$key" >&2; exit 1; }
+  done
 done
 [[ "$AUDIT_IMAGE_SHA256" == "$EXPECTED_IMAGE_SHA256" ]] || { echo "Audit/build Image hash mismatch" >&2; exit 1; }
-[[ -d "$AUDIT_REPORT_DIR" && -f "$AUDIT_REPORT_DIR/summary.json" ]] || { echo "Missing module audit report" >&2; exit 1; }
-[[ "$(sha256sum "$AUDIT_REPORT_DIR/summary.json" | awk '{print $1}')" == "$(meta_value summary_sha256 "$AUDIT_META")" ]] || {
-  echo "Module audit summary hash mismatch" >&2; exit 1;
-}
+for report in vendor-ramdisk/summary.json system-dlkm/summary.json rust-binder-imports.tsv; do
+  [[ -f "$AUDIT_REPORT_DIR/$report" ]] || { echo "Missing module audit report: $report" >&2; exit 1; }
+done
+[[ "$(sha256sum "$AUDIT_REPORT_DIR/vendor-ramdisk/summary.json" | awk '{print $1}')" == "$(meta_value vendor_summary_sha256 "$AUDIT_META")" ]] || { echo "Vendor audit summary hash mismatch" >&2; exit 1; }
+[[ "$(sha256sum "$AUDIT_REPORT_DIR/system-dlkm/summary.json" | awk '{print $1}')" == "$(meta_value system_dlkm_summary_sha256 "$AUDIT_META")" ]] || { echo "system_dlkm audit summary hash mismatch" >&2; exit 1; }
+[[ "$(sha256sum "$AUDIT_REPORT_DIR/rust-binder-imports.tsv" | awk '{print $1}')" == "$(meta_value rust_binder_report_sha256 "$AUDIT_META")" ]] || { echo "rust_binder audit report hash mismatch" >&2; exit 1; }
 [[ "$(sha256sum "$STOCK_BOOT" | awk '{print $1}')" == "$EXPECTED_STOCK_BOOT_SHA256" ]] || {
   echo "Stock boot hash mismatch" >&2; exit 1;
 }
@@ -123,11 +133,25 @@ cat > "$ARTIFACT_DIR/REVIEW-STATUS.txt" <<EOF_REVIEW
 variant=$VARIANT
 vendor_module_audit_pass=yes
 vendor_modules_audited=466
-missing=0
-crc_mismatch=0
-provider_conflict=0
-present_unexported=0
-flag_mismatch_modules=0
+vendor_imports_checked=22474
+vendor_missing=0
+vendor_crc_mismatch=0
+vendor_provider_conflict=0
+vendor_present_unexported=0
+vendor_flag_mismatch_modules=0
+stock_system_dlkm_consumer_audit_pass=yes
+stock_system_dlkm_modules_audited=103
+stock_system_dlkm_imports_checked=5816
+stock_system_dlkm_missing=0
+stock_system_dlkm_crc_mismatch=0
+stock_system_dlkm_provider_conflict=0
+stock_system_dlkm_present_unexported=0
+stock_system_dlkm_flag_mismatch_modules=0
+total_modules_audited=569
+total_imports_checked=28290
+stock_rust_binder_imports_checked=234
+stock_rust_binder_bad_imports=0
+stock_rust_binder_audit_pass=yes
 stock_template_size_bytes=100663296
 boot_header_version=4
 boot_ramdisk_size=0
@@ -151,6 +175,12 @@ candidate_sha=$(sha256sum "$ARTIFACT_DIR/boot-r30-stock-containers-stock-templat
   printf 'input_image_sha256=%s\n' "$EXPECTED_IMAGE_SHA256"
   printf 'module_audit_pass=yes\n'
   printf 'module_audit_report=%s\n' "$AUDIT_REPORT_DIR"
+  printf 'vendor_modules_audited=466\n'
+  printf 'system_dlkm_modules_audited=103\n'
+  printf 'total_modules_audited=569\n'
+  printf 'total_imports_checked=28290\n'
+  printf 'stock_rust_binder_imports_checked=234\n'
+  printf 'stock_rust_binder_audit_pass=yes\n'
   printf 'magiskboot=%s\n' "$MAGISKBOOT"
   printf 'magiskboot_sha256=%s\n' "$EXPECTED_MAGISKBOOT_SHA256"
   printf 'candidate=%s\n' "$ARTIFACT_DIR/boot-r30-stock-containers-stock-template.img"

@@ -11,13 +11,15 @@
 ### 1.1 最终结论
 
 - 设备为小米 17，型号 `25113PN0EC`，代号 `pudding`，平台 `Qualcomm SM8850 / canoe`；用户态为 Android 17 / HyperOS 4，内核基线属于 `android16-6` GKI 6.12.69。
-- 当前设备通过 `fastboot boot` 临时运行 R30 stock-compat 证书信任候选，活动槽为 A；`boot_a` 与 `init_boot_a` 均未在本轮写入。
+- 最近一次可观测实机状态是通过 `fastboot boot` 临时运行首版 R30 stock-containers 候选，活动槽为 A；`boot_a` 与 `init_boot_a` 均未在本轮写入。
 - slot B 的 `boot_b`、`init_boot_b`、`vendor_boot_b`、`dtbo_b` 备份均为全零，不是可用备用系统；整个项目不使用 slot B。
-- 本地 Kleaf/Bazel 构建链、原厂导出 CRC 恢复、`vendor_data_pad` 1024-byte/KABI 兼容机制和 466 个 vendor module 全量审计均已建立。
+- 本地 Kleaf/Bazel 构建链、原厂导出 CRC 恢复、`vendor_data_pad` 1024-byte/KABI 兼容机制、466 个 vendor module 和 103 个 stock system_dlkm consumer 的联合审计均已建立。
 - R62 自定义内核成功编译，466 个 vendor module 静态审计达到 0 mismatch、0 missing、0 unexported、0 provider conflict。
 - 用户实机确认 R62 能进入系统，相机、指纹、Wi-Fi 和蓝牙可用，但该历史样本无法建立移动数据、IMS 注册和双卡通话。
 - 2026-08-27 的 R30 stock-compat 最终候选同时完成 release identity 与 stock module signing certificate 配对；运行模块数从失败候选的 579 恢复到 stock 的 670。
 - 自动验收确认 Wi-Fi、蓝牙、双卡语音/数据注册、两路 IMS 网络和蜂窝 Internet 网络均恢复；用户随后确认“现在好像所有东西都能用”。
+- 首版容器候选已实机完成 Android 启动和 PID/IPC namespace、SYSVIPC、mqueue、devtmpfs smoke test，但只加载 669/670 个 stock 模块；唯一缺少的 `rust_binder.ko` 暴露出此前 466 模块审查没有覆盖 stock system_dlkm consumer 的缺口。
+- 修复后构建把新增 SYSVIPC C 布局对 bindgen 隔离；相对 stock-compatible 基线只新增 `init_ipc_ns`、`put_ipc_ns` 两个导出，旧符号零删除、零 CRC 变化。stock `rust_binder.ko` 的 234 个导入现已全部静态匹配，但修复后 boot 尚未实机复测。
 - 历史 R62 的 `dsi_init_cb` 分叉仍是有效旧证据，但不再代表当前 R30 stock-compat 候选的运行结果。
 - 唯一一次“最小 RFKILL 自定义内核下电话打通”的实验后来确认实际运行的是 stock Image，结论已撤回。
 - 当前已有可作为后续容器配置基线的临时启动候选，但修改 kernel 后没有有效 Xiaomi AVB 签名，仍不能直接 flash 或视为长期安装包。
@@ -1528,9 +1530,93 @@ boot SHA-256: a1f844771b61ee75468d943f95c2753d1224ad5c968618145bbae2a9c9b7f715
 
 本地重打包器仍先重建历史 MagiskBoot 参考候选并达到逐字节一致；最终镜像的
 header v4、空 ramdisk、内嵌 Image 和 96 MiB 总长度均通过结构检查。修改 payload
-后 Xiaomi AVB 签名无效，所以仍只允许 `fastboot boot`，禁止 flash。本阶段没有
-重启或操作手机，实机无线、蜂窝及 Droidspaces 容器创建/销毁验收仍为
-`not_run`。KernelSU 或其他运行时改动继续作为独立变量，不混入本轮内核配置。
+后 Xiaomi AVB 签名无效，所以仍只允许 `fastboot boot`，禁止 flash。
+
+#### 2026-08-27 首版容器实机测试与 stock Rust KMI 漏审
+
+随后对上述首版候选只执行了 `fastboot boot`，没有 flash，也没有使用 slot B。
+约 15 秒恢复 ADB，`sys.boot_completed=1`；运行内核的构建时间确认是候选版本。
+KSU root、蓝牙、双卡语音/数据注册、cellular VALIDATED 和 IMS 网络记录均正常，
+15 个关键无线/蜂窝模块全部存在。Wi-Fi 模块和 `wlan0` 存在，但系统设置在启动后
+变为 `wifi_on=0`，日志记录了 SystemUI toggle；自动测试没有擅自重新打开 Wi-Fi，
+因此这一轮不能把 Wi-Fi 数据连接写成自动通过。
+
+容器能力 smoke test 全部通过：
+
+~~~text
+IPC namespace:              新 inode，与父 namespace 不同
+PID namespace:              子 shell PID=1
+PID + IPC namespace:        组合成功
+/proc/sysvipc/msg|sem|shm:   存在
+mqueue private mount:       成功
+devtmpfs/mqueue filesystems: 存在
+~~~
+
+但启动前 stock 有 670 个模块，首版候选只有 669 个，唯一缺少：
+
+~~~text
+rust_binder
+~~~
+
+手工 `insmod` 返回 `Invalid argument`。dmesg 显示 19 个 Rust export CRC
+mismatch，并缺少 2 个旧 Rust mangled symbol。根因不是真实 C KABI 空洞布局，而是
+首版启用 SYSVIPC 后 bindgen 也看到了新增字段和 SysV 类型，进而改变 Rust
+`task_struct` binding、匿名 union 编号和 Rust symbol CRC。此前审查的 466 个
+vendor_ramdisk 模块只把 stock `system_dlkm` 当 provider，没有把其中的模块当
+consumer，因此没有检查到 stock `rust_binder.ko`。
+
+修复拆成两个独立补丁：
+
+~~~text
+0012-preserve-stock-rust-kmi-for-sysvipc.patch
+0013-update-abi-after-rust-kmi-preservation.patch
+~~~
+
+`0012` 只对 `__BINDGEN__` 隐藏新增 SYSVIPC task state 和相关 SysV helper
+布局；正常 C 编译仍保留真实字段。`0013` 再用官方
+`//common:kernel_aarch64_abi_update` 更新 ABI snapshot，没有手写 ABI 或 CRC。
+从 pristine R30 重放全部 13 个补丁后，strict ABI/KMI 构建通过。相对已兼容 stock
+的 stage-1 基线：
+
+~~~text
+old symbols: 10351
+new symbols: 10353
+added:       init_ipc_ns, put_ipc_ns
+removed:     0
+CRC changed: 0
+~~~
+
+审查范围随后扩展为 466 个 vendor consumer 加 103 个 stock system_dlkm consumer：
+
+~~~text
+vendor modules/imports:      466 / 22474
+system_dlkm modules/imports: 103 / 5816
+total modules/imports:       569 / 28290
+stock rust_binder imports:   234
+missing:                     0
+CRC mismatch:                0
+provider conflict:           0
+present unexported:          0
+vermagic flag mismatch:      0
+~~~
+
+修复后正式构建：
+
+~~~text
+Image:
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T230746Z-rust-kmi-fixed/Image
+Image SHA-256:
+8dd40a7250932fd94f7023be68c624522da9983783c4236be4ff4d9824a1d284
+
+boot:
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T232346Z-rust-kmi-fixed-stock-template/boot-r30-stock-containers-stock-template.img
+boot size:    100663296
+boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
+~~~
+
+该修复后 boot 尚未实机复测。下一步仍只能在用户确认设备已连接并进入 fastboot 后
+执行一次 `fastboot boot`；禁止 flash、禁止 slot B，也不能用静态全绿代替模块
+加载、无线/蜂窝和容器生命周期复验。
 
 ### 阶段 E：小米完整源码可行性短审计
 

@@ -9,3 +9,5 @@
 0009-export-ipc-namespace-symbols.patch
 0010-update-gki-abi-for-container-ipc-state.patch
 0011-enable-devtmpfs.patch
+0012-preserve-stock-rust-kmi-for-sysvipc.patch
+0013-update-abi-after-rust-kmi-preservation.patch
