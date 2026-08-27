@@ -1,0 +1,40 @@
+From d6f973a8aa5d16d2e2465cdcc8dc333fd5e1e769 Mon Sep 17 00:00:00 2001
+From: Codex local builder <codex@local.invalid>
+Date: Thu, 27 Aug 2026 22:31:23 +0800
+Subject: [PATCH] LOCAL: export IPC namespace symbols for rust binder
+
+With CONFIG_IPC_NS enabled, the in-tree rust_binder.ko references init_ipc_ns and put_ipc_ns. Export both real symbols so modpost resolves the module. The symbols are intentionally not added to the stable GKI KMI symbol list: Kleaf confirms they are consumed only by the in-tree GKI module, and update_symbol_list removes them from the public list.
+
+Change-Id: I260051512eef4dba3b483fd262698235860483d5
+---
+ ipc/msgutil.c   | 1 +
+ ipc/namespace.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/ipc/msgutil.c b/ipc/msgutil.c
+index c7be0c792647..c0ca531a27fa 100644
+--- a/ipc/msgutil.c
++++ b/ipc/msgutil.c
+@@ -33,6 +33,7 @@ struct ipc_namespace init_ipc_ns = {
+ 	.ns.ops = &ipcns_operations,
+ #endif
+ };
++EXPORT_SYMBOL(init_ipc_ns);
+ 
+ struct msg_msgseg {
+ 	struct msg_msgseg *next;
+diff --git a/ipc/namespace.c b/ipc/namespace.c
+index 4df91ceeeafe..6c6c6e3c7cfd 100644
+--- a/ipc/namespace.c
++++ b/ipc/namespace.c
+@@ -207,6 +207,7 @@ void put_ipc_ns(struct ipc_namespace *ns)
+ 			schedule_work(&free_ipc_work);
+ 	}
+ }
++EXPORT_SYMBOL(put_ipc_ns);
+ 
+ static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
+ {
+-- 
+2.55.0
+

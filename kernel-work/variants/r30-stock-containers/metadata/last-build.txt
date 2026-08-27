@@ -1,11 +1,11 @@
-build_id=20260827T140700Z-stage1-pid-ns-v2
-started_utc=2026-08-27T14:04:17Z
+build_id=20260827T152000Z-final-containers
+started_utc=2026-08-27T15:19:40Z
 variant=r30-stock-containers
 target=//common:kernel_aarch64_abi_dist
 jobs=16
 worktree=/home/nahida/agents/tmp/kernel-work/worktrees/r30-stock-containers
 output_user_root=/home/nahida/agents/tmp/kernel-work/out/r30-stock-containers/bazel-user-root
 repo_manifest=/home/nahida/agents/tmp/kernel-work/source-locks/r30/checked-out-manifest.xml
-artifact_dir=/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T140700Z-stage1-pid-ns-v2
+artifact_dir=/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers
 host=Linux nahida 7.1.9-200.fc44.x86_64 #1 SMP PREEMPT_DYNAMIC Wed Aug 19 17:41:40 UTC 2026 x86_64 GNU/Linux
-finished_utc=2026-08-27T14:11:14Z
+finished_utc=2026-08-27T15:27:13Z

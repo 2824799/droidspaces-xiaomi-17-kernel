@@ -5,3 +5,7 @@
 0005-pair-stock-system-dlkm-release.patch
 0006-trust-stock-system-dlkm-signing-key.patch
 0007-enable-pid-namespaces.patch
+0008-enable-sysvipc-posix-mqueue-kabi.patch
+0009-export-ipc-namespace-symbols.patch
+0010-update-gki-abi-for-container-ipc-state.patch
+0011-enable-devtmpfs.patch

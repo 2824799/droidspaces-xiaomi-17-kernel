@@ -1,0 +1,27 @@
+From d78fc83ce948815a0e56d2b4e1deeb3debf6641f Mon Sep 17 00:00:00 2001
+From: Codex local builder <codex@local.invalid>
+Date: Thu, 27 Aug 2026 23:17:18 +0800
+Subject: [PATCH] LOCAL: enable devtmpfs for containers
+
+Enable CONFIG_DEVTMPFS without enabling DEVTMPFS_MOUNT. Keep USER_NS and CGROUP_DEVICE disabled. The canonical Kleaf kernel_aarch64_config savedefconfig check passes with this single config delta.
+
+Change-Id: I08da8fad5458af19b6c2179af0d2f08a5ccab427
+---
+ arch/arm64/configs/gki_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 5c305a34b0c8..35a79cb4d523 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -332,6 +332,7 @@ CONFIG_PCIE_KIRIN=y
+ CONFIG_PCIE_DW_PLAT_EP=y
+ CONFIG_PCIE_QCOM=y
+ CONFIG_PCI_ENDPOINT=y
++CONFIG_DEVTMPFS=y
+ CONFIG_FW_LOADER_USER_HELPER=y
+ # CONFIG_FW_CACHE is not set
+ CONFIG_REGMAP_KUNIT=m
+-- 
+2.55.0
+

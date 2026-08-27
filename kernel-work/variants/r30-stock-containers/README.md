@@ -5,45 +5,63 @@
 
 ## 当前阶段
 
-当前只启用第一阶段：
+最小容器配置阶段已全部启用：
 
 ```text
 CONFIG_PID_NS=y
+CONFIG_IPC_NS=y
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+CONFIG_DEVTMPFS=y
 ```
 
 R30 的 Kconfig 默认值本来就是 `y`，但 GKI defconfig 显式写了
-`# CONFIG_PID_NS is not set`。因此本阶段补丁只删除这个显式关闭项；没有修改
-调度结构、KMI 符号、模块签名、RFKILL 或任何无线/蜂窝代码。
+`# CONFIG_PID_NS is not set`，所以 PID namespace 补丁只删除该覆盖项。
+`CONFIG_IPC_NS` 依赖 `SYSVIPC || POSIX_MQUEUE`，在后两项启用后由 Kconfig
+自动取默认值 `y`，没有向 defconfig 写入冗余项。
 
-当前阶段未启用：
+SYSVIPC 的 `sysvsem`/`sysvshm` 被放入 `task_struct` 中原有的 28 字节
+对齐空洞。最终 DWARF 布局保持：
 
 ```text
-CONFIG_IPC_NS
-CONFIG_SYSVIPC
-CONFIG_POSIX_MQUEUE
-CONFIG_DEVTMPFS
+sizeof(task_struct)=5184
+rt_priority=160
+sysvsem=164
+sysvshm=172
+sched_entity(se)=192
+```
+
+`rust_binder.ko` 所需的真实 `init_ipc_ns` 和 `put_ipc_ns` 已导出，但没有
+加入公开稳定 GKI KMI symbol list。ABI snapshot 由官方
+`//common:kernel_aarch64_abi_update` 目标生成，没有手工写 ABI 或 CRC。
+
+刻意保持关闭：
+
+```text
+CONFIG_DEVTMPFS_MOUNT
 CONFIG_USER_NS
 CONFIG_CGROUP_DEVICE
 ```
 
 ## 构建结果
 
-阶段 1 已完成 strict KMI 构建、stock release/certificate 检查和 466 个 vendor
+最终阶段已完成 strict KMI 构建、stock release/certificate 检查和 466 个 vendor
 ramdisk 模块审计。候选尚未进行手机实机启动测试。
 
 ```text
-Image SHA-256: 7532f7ceecce2ac010cf5d43abce567f32687ee8e7210191c91123a50d326328
-Image size:   42097152 bytes
+Image SHA-256: 460c4ee4d025bb9fa042068c5ebc8418d1882079529f4951509b8d90bce97232
+Image size:   42166784 bytes
 kernel release: 6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
 modules audited: 466
 imports checked: 22474
 missing/crc/provider conflicts: 0/0/0
+strict ABI/KMI build: pass
 ```
 
 对应产物目录：
 
 ```text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T140700Z-stage1-pid-ns-v2/
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers/
 ```
 
 下一步打包候选只允许 `fastboot boot` 临时启动；在获得明确实机测试授权前不重启、
@@ -51,11 +69,15 @@ missing/crc/provider conflicts: 0/0/0
 
 ## 补丁顺序
 
-当前 `patches/common/series` 包含原有 6 个兼容补丁和本阶段的：
+当前 `patches/common/series` 包含原有 6 个兼容补丁和：
 
 ```text
 0007-enable-pid-namespaces.patch
+0008-enable-sysvipc-posix-mqueue-kabi.patch
+0009-export-ipc-namespace-symbols.patch
+0010-update-gki-abi-for-container-ipc-state.patch
+0011-enable-devtmpfs.patch
 ```
 
-后续 SYSVIPC/KABI、符号导出和 DEVTMPFS 改动必须继续使用独立提交，不能把多个
-阶段压成一个不可二分的补丁。
+最小配置补丁链已经完成。下一步是独立的实机 `fastboot boot` 验收；该步骤
+尚未执行，不能用静态审查结果代替无线、蜂窝和容器生命周期测试。

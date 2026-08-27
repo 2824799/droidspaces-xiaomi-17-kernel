@@ -5,5 +5,9 @@
 597a6c604573b9a0ebe26fbe037bc96e50ac46aa24070415f35e505ef8eecc31  0005-pair-stock-system-dlkm-release.patch
 2989f7ecf21ea1c192cbd273bb1bb25e5a77186c664a44e3c363d1c987200ba5  0006-trust-stock-system-dlkm-signing-key.patch
 aa2f3b959eac77a000ff2fde77535f4b906ed7d08f73270db5d4740dcff212da  0007-enable-pid-namespaces.patch
+289db0bad997e93949a86f62fc59acbe5b95217189aaf1b21cd0471aef6ac90d  0008-enable-sysvipc-posix-mqueue-kabi.patch
+e0ca6e9a062e2464794fb8f06d16d7e74caee5b80299a4fb04db06d770adcfdc  0009-export-ipc-namespace-symbols.patch
+87a2cf85c5dad8dd12fb6d15e871d4c4f438e3666d20145ca87fd20f2e5560c0  0010-update-gki-abi-for-container-ipc-state.patch
+bc1d318ffeed31754e3b94036a35775d57e78663ba0173feff38b13d918ba117  0011-enable-devtmpfs.patch
 # source lock for external Droidspaces reference
 059db74ecf615273785f25c54b0b26f61cee9ea330d3b4787cdfd8172778eaad  external-ravindu644-Droidspaces-OSS-001.GKI-6.12-or-above-fix_sysvipc_kabi.patch

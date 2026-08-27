@@ -38,6 +38,8 @@ done
 
 EXPECTED_IMAGE_SHA256=$(meta_value image_sha256 "$BUILD_META")
 BUILD_KERNEL_RELEASE=$(meta_value kernel_release "$BUILD_META")
+BUILD_ARTIFACT_DIR=$(meta_value artifact_dir "$BUILD_META")
+BUILD_CONFIG="$BUILD_ARTIFACT_DIR/.config"
 AUDIT_IMAGE_SHA256=$(meta_value image_sha256 "$AUDIT_META")
 AUDIT_REPORT_DIR=$(meta_value report_dir "$AUDIT_META")
 [[ -n "$EXPECTED_IMAGE_SHA256" ]] || { echo "Missing image_sha256 in build metadata" >&2; exit 1; }
@@ -62,6 +64,32 @@ for key in missing crc_mismatch provider_conflict present_unexported flag_mismat
 done
 [[ "$AUDIT_IMAGE_SHA256" == "$EXPECTED_IMAGE_SHA256" ]] || { echo "Audit/build Image hash mismatch" >&2; exit 1; }
 [[ -d "$AUDIT_REPORT_DIR" && -f "$AUDIT_REPORT_DIR/summary.json" ]] || { echo "Missing module audit report" >&2; exit 1; }
+[[ -f "$BUILD_CONFIG" ]] || { echo "Missing verified build config: $BUILD_CONFIG" >&2; exit 1; }
+required_configs=(
+  'CONFIG_PID_NS=y'
+  'CONFIG_IPC_NS=y'
+  'CONFIG_SYSVIPC=y'
+  'CONFIG_POSIX_MQUEUE=y'
+  'CONFIG_DEVTMPFS=y'
+  'CONFIG_RFKILL=m'
+  '# CONFIG_DEVTMPFS_MOUNT is not set'
+  '# CONFIG_USER_NS is not set'
+  '# CONFIG_CGROUP_DEVICE is not set'
+)
+for expected in "${required_configs[@]}"; do
+  grep -Fqx "$expected" "$BUILD_CONFIG" || { echo "Required config gate failed: $expected" >&2; exit 1; }
+done
+for marker in kernel_aarch64_kmi_symbol_list_violations_checked kmi_symbol_list_strict_mode_checked; do
+  [[ -f "$BUILD_ARTIFACT_DIR/$marker" && ! -s "$BUILD_ARTIFACT_DIR/$marker" ]] || {
+    echo "Strict KMI marker is missing or non-empty: $marker" >&2; exit 1;
+  }
+done
+grep -Eq '[[:space:]]init_ipc_ns[[:space:]].*EXPORT_SYMBOL' "$BUILD_ARTIFACT_DIR/Module.symvers" || {
+  echo "init_ipc_ns is not exported" >&2; exit 1;
+}
+grep -Eq '[[:space:]]put_ipc_ns[[:space:]].*EXPORT_SYMBOL' "$BUILD_ARTIFACT_DIR/Module.symvers" || {
+  echo "put_ipc_ns is not exported" >&2; exit 1;
+}
 [[ "$(sha256sum "$AUDIT_REPORT_DIR/summary.json" | awk '{print $1}')" == "$(meta_value summary_sha256 "$AUDIT_META")" ]] || {
   echo "Module audit summary hash mismatch" >&2; exit 1;
 }
@@ -112,8 +140,21 @@ NOTICE
 
 cat > "$ARTIFACT_DIR/REVIEW-STATUS.txt" <<EOF_REVIEW
 variant=$VARIANT
-base=android16-6.12-2026-03_r30 plus four official R31 Xiaomi compatibility commits and two local pairing/trust patches
+base=android16-6.12-2026-03_r30 plus the external audited patch series recorded in review/patch-provenance.txt
 kernel_release=$BUILD_KERNEL_RELEASE
+container_config_pid_ns=y
+container_config_ipc_ns=y
+container_config_sysvipc=y
+container_config_posix_mqueue=y
+container_config_devtmpfs=y
+container_config_devtmpfs_mount=n
+container_config_user_ns=n
+container_config_cgroup_device=n
+rfkill=m
+strict_kmi_pass=yes
+ipc_namespace_exports=init_ipc_ns,put_ipc_ns
+task_struct_size=5184
+task_struct_offsets=rt_priority:160,sysvsem:164,sysvshm:172,sched_entity:192
 stock_system_dlkm_release_pairing_pass=yes
 stock_system_dlkm_signing_cert_trusted=yes
 stock_system_dlkm_signing_cert_serial=$EXPECTED_STOCK_MODULE_CERT_SERIAL

@@ -1456,15 +1456,81 @@ AVB 签名，只允许 fastboot boot，严禁 flash。
 
 ### 阶段 D：Droidspaces 单变量递增
 
-阶段 C 已在 2026-08-27 达到 SIM、数据、IMS、Wi-Fi 与蓝牙的可用基线。下一步
-从该提交新建独立容器 variant，并按顺序加入：
+阶段 C 已在 2026-08-27 达到 SIM、数据、IMS、Wi-Fi 与蓝牙的可用基线。随后从
+该提交复制出独立的 `r30-stock-containers` variant；已验收的
+`r30-stock-compat` 和所有 `kernel-work/upstream/` 源码均未修改。
 
-1. `PID_NS + IPC_NS`
-2. `SYSVIPC + POSIX_MQUEUE + KABI patch`
-3. `DEVTMPFS`
-4. KernelSU 或其他额外运行时改动，作为独立变量最后加入
+原计划先启用 `PID_NS + IPC_NS`，但 R30 Kconfig 明确规定：
 
-每轮只改变一组变量，保存完整产物和启动日志。首个导致 `dsi_init_cb`、IMS 或移动数据回归的阶段，就是后续定位边界。
+~~~text
+CONFIG_IPC_NS depends on (SYSVIPC || POSIX_MQUEUE)
+~~~
+
+因此实际按可构建边界拆分为：
+
+1. 删除 GKI defconfig 中的 `# CONFIG_PID_NS is not set`；
+2. 启用 `SYSVIPC + POSIX_MQUEUE`，由 Kconfig 自动得到 `IPC_NS=y`；
+3. 使用 Droidspaces-OSS 锁定补丁的 KABI 方法，把 SYSVIPC task state 放入
+   `task_struct` 原有对齐空洞；
+4. 导出 in-tree `rust_binder.ko` 实际引用的 `init_ipc_ns` 与
+   `put_ipc_ns`；
+5. 用官方 `//common:kernel_aarch64_abi_update` 生成 ABI snapshot；
+6. 最后以单独补丁启用 `CONFIG_DEVTMPFS=y`。
+
+没有把 IPC 符号加入公开稳定 GKI symbol list，没有伪造 CRC，没有关闭
+MODVERSIONS/strict KMI。最终配置边界为：
+
+~~~text
+CONFIG_PID_NS=y
+CONFIG_IPC_NS=y
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+CONFIG_DEVTMPFS=y
+# CONFIG_DEVTMPFS_MOUNT is not set
+# CONFIG_USER_NS is not set
+# CONFIG_CGROUP_DEVICE is not set
+CONFIG_RFKILL=m
+~~~
+
+DWARF 验证表明 SYSVIPC 字段使用的确是既有空洞，没有移动后续调度字段：
+
+~~~text
+sizeof(task_struct): 5184
+rt_priority:         160
+sysvsem:             164
+sysvshm:             172
+sched_entity (se):   192
+~~~
+
+阶段 2 和最终 DEVTMPFS 构建之间的 `Module.symvers` 完全相同：10,353 个符号，
+零新增、零删除、零 CRC 变化。最终 strict KMI 构建与 stock 模块审查结果：
+
+~~~text
+kernel release:            6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
+Image size:                42166784 bytes
+Image SHA-256:             460c4ee4d025bb9fa042068c5ebc8418d1882079529f4951509b8d90bce97232
+vmlinux SHA-256:           b99c3771db0d85a4fbcea59af004da6ff7363e7d0022930eebe998e974d14d32
+Module.symvers SHA-256:    b48480ea59efc6452667bcd7ccfac9d5a1ad22b43e336cb9ea0227ecca0e7c06
+modules:                   466
+imports:                   22474
+missing/CRC/provider:      0/0/0
+strict KMI:                pass
+~~~
+
+最终构建与 96 MiB 原厂模板候选：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers/
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T153000Z-final-containers-stock-template/boot-r30-stock-containers-stock-template.img
+boot size:    100663296 bytes
+boot SHA-256: a1f844771b61ee75468d943f95c2753d1224ad5c968618145bbae2a9c9b7f715
+~~~
+
+本地重打包器仍先重建历史 MagiskBoot 参考候选并达到逐字节一致；最终镜像的
+header v4、空 ramdisk、内嵌 Image 和 96 MiB 总长度均通过结构检查。修改 payload
+后 Xiaomi AVB 签名无效，所以仍只允许 `fastboot boot`，禁止 flash。本阶段没有
+重启或操作手机，实机无线、蜂窝及 Droidspaces 容器创建/销毁验收仍为
+`not_run`。KernelSU 或其他运行时改动继续作为独立变量，不混入本轮内核配置。
 
 ### 阶段 E：小米完整源码可行性短审计
 
