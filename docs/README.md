@@ -19,7 +19,7 @@
 - 2026-08-27 的 R30 stock-compat 最终候选同时完成 release identity 与 stock module signing certificate 配对；运行模块数从失败候选的 579 恢复到 stock 的 670。
 - 自动验收确认 Wi-Fi、蓝牙、双卡语音/数据注册、两路 IMS 网络和蜂窝 Internet 网络均恢复；用户随后确认“现在好像所有东西都能用”。
 - 首版容器候选已实机完成 Android 启动和 PID/IPC namespace、SYSVIPC、mqueue、devtmpfs smoke test，但只加载 669/670 个 stock 模块；唯一缺少的 `rust_binder.ko` 暴露出此前 466 模块审查没有覆盖 stock system_dlkm consumer 的缺口。
-- 修复后构建把新增 SYSVIPC C 布局对 bindgen 隔离；相对 stock-compatible 基线只新增 `init_ipc_ns`、`put_ipc_ns` 两个导出，旧符号零删除、零 CRC 变化。stock `rust_binder.ko` 的 234 个导入现已全部静态匹配，但修复后 boot 尚未实机复测。
+- 修复后构建把新增 SYSVIPC C 布局对 bindgen 隔离；相对 stock-compatible 基线只新增 `init_ipc_ns`、`put_ipc_ns` 两个导出，旧符号零删除、零 CRC 变化。stock `rust_binder.ko` 的 234 个导入全部静态匹配，随后实机模块数恢复到 670，`rust_binder` 正常加载。
 - 历史 R62 的 `dsi_init_cb` 分叉仍是有效旧证据，但不再代表当前 R30 stock-compat 候选的运行结果。
 - 唯一一次“最小 RFKILL 自定义内核下电话打通”的实验后来确认实际运行的是 stock Image，结论已撤回。
 - 当前已有可作为后续容器配置基线的临时启动候选，但修改 kernel 后没有有效 Xiaomi AVB 签名，仍不能直接 flash 或视为长期安装包。
@@ -1614,9 +1614,38 @@ boot size:    100663296
 boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
 ~~~
 
-该修复后 boot 尚未实机复测。下一步仍只能在用户确认设备已连接并进入 fastboot 后
-执行一次 `fastboot boot`；禁止 flash、禁止 slot B，也不能用静态全绿代替模块
-加载、无线/蜂窝和容器生命周期复验。
+该修复后 boot 随后只通过 `fastboot boot` 临时启动，没有 flash，也没有使用
+slot B。15 秒恢复 ADB，Android 完成启动；运行内核构建时间为
+`Thu Aug 27 23:06:13 UTC 2026`。首版候选启动前的 669 个模块恢复为 670，
+stock `rust_binder` 正常加载，最终 dmesg 中 Rust KMI 错误、模块签名拒绝和
+panic/oops 均为 0。
+
+自动复验结果：
+
+~~~text
+Wi-Fi:                     enabled, connected, VALIDATED
+Bluetooth:                 ON, device connected
+required radio modules:    missing 0
+voice/data IN_SERVICE:     present
+cellular VALIDATED:        present
+IMS VALIDATED:             2 networks
+IPC namespace:             pass
+PID + IPC namespace:       child PID 1, pass
+SYSVIPC msg/sem/shm:        present
+mqueue private mount:      pass
+KSU root:                  pass
+~~~
+
+日志目录：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260827T233007Z-rust-kmi-fixed-device-test/
+~~~
+
+至此，修复后的最小容器内核已经通过 strict 构建、569 模块/28290 导入静态审查、
+完整 stock 模块加载、无线/蜂窝和 namespace smoke test。仍未自动执行拨号、短信、
+热点切换，也未完成完整 Droidspaces 用户态生命周期、休眠唤醒或长时间压力测试。
+候选继续只允许临时运行；正常重启会回到持久化 `boot_a`。
 
 ### 阶段 E：小米完整源码可行性短审计
 

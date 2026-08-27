@@ -86,8 +86,20 @@ boot size:    100663296
 boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
 ```
 
-修复后候选尚未实机复测。它没有有效 Xiaomi AVB 签名，只允许
-`fastboot boot` 临时测试，禁止 flash，禁止使用 slot B。
+修复后候选已通过一次 `fastboot boot` 实机复测：15 秒恢复 ADB，Android 完成
+启动；模块数由首版的 669 恢复为 670，stock `rust_binder` 正常加载，dmesg 中
+Rust KMI 错误、签名拒绝和 panic/oops 均为 0。Wi-Fi 已连接并 VALIDATED，蓝牙为
+ON 且设备已连接，cellular 与两路 IMS 网络均有 VALIDATED 记录。PID/IPC namespace、
+SYSVIPC、mqueue 和 devtmpfs smoke test 全部通过。
+
+实机日志：
+
+```text
+/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260827T233007Z-rust-kmi-fixed-device-test/
+```
+
+该候选没有有效 Xiaomi AVB 签名，只允许 `fastboot boot` 临时运行，禁止 flash，
+禁止使用 slot B。正常重启会回到持久化 `boot_a`。
 
 ## 补丁顺序
 
@@ -103,4 +115,5 @@ boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
 0013-update-abi-after-rust-kmi-preservation.patch
 ```
 
-静态审查不能代替修复后候选的实机启动、完整模块加载和容器生命周期验收。
+当前只完成了内核能力 smoke test；完整 Droidspaces 用户态创建/销毁流程、休眠唤醒
+和长时间稳定性仍需按独立测试阶段验收。
