@@ -21,6 +21,7 @@ META="$ROOT/variants/$VARIANT/metadata/stock-template-build-result.txt"
 EXPECTED_STOCK_BOOT_SHA256="af83b83f63ae833b05d69b87b8e216c3a0bace798699080e799cd8fff344248b"
 EXPECTED_REFERENCE_IMAGE_SHA256="9888b71a440c6713f820fe4e1775f460bb9ae6272444bdeaba5039357ae59a24"
 EXPECTED_REFERENCE_BOOT_SHA256="b66b1d547142fcedea03b9d1b270a41b19eb7dd53b36dad1fba5d5413b7eb6e6"
+EXPECTED_KERNEL_RELEASE="6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k"
 
 meta_value() {
   local key="$1" file="$2"
@@ -34,10 +35,15 @@ for input in "$STOCK_BOOT" "$IMAGE" "$REPACK_SCRIPT" "$VERIFY_SCRIPT" \
 done
 
 EXPECTED_IMAGE_SHA256=$(meta_value image_sha256 "$BUILD_META")
+BUILD_KERNEL_RELEASE=$(meta_value kernel_release "$BUILD_META")
 AUDIT_IMAGE_SHA256=$(meta_value image_sha256 "$AUDIT_META")
 AUDIT_REPORT_DIR=$(meta_value report_dir "$AUDIT_META")
 [[ -n "$EXPECTED_IMAGE_SHA256" ]] || { echo "Missing image_sha256 in build metadata" >&2; exit 1; }
 [[ "$(meta_value variant "$BUILD_META")" == "$VARIANT" ]] || { echo "Build metadata variant mismatch" >&2; exit 1; }
+[[ "$BUILD_KERNEL_RELEASE" == "$EXPECTED_KERNEL_RELEASE" ]] || {
+  echo "Kernel release does not match stock system_dlkm: $BUILD_KERNEL_RELEASE" >&2
+  exit 1
+}
 [[ "$(meta_value audit_pass "$AUDIT_META")" == yes ]] || { echo "Module audit has not passed" >&2; exit 1; }
 [[ "$(meta_value modules "$AUDIT_META")" == 466 ]] || { echo "Module audit did not cover 466 modules" >&2; exit 1; }
 for key in missing crc_mismatch provider_conflict present_unexported flag_mismatch_modules; do
@@ -95,7 +101,9 @@ NOTICE
 
 cat > "$ARTIFACT_DIR/REVIEW-STATUS.txt" <<EOF_REVIEW
 variant=$VARIANT
-base=android16-6.12-2026-03_r30 plus four official R31 Xiaomi compatibility commits
+base=android16-6.12-2026-03_r30 plus four official R31 Xiaomi compatibility commits and one local release-identity pairing patch
+kernel_release=$BUILD_KERNEL_RELEASE
+stock_system_dlkm_release_pairing_pass=yes
 vendor_module_audit_pass=yes
 vendor_modules_audited=466
 imports_checked=22474
@@ -103,7 +111,8 @@ missing=0
 crc_mismatch=0
 provider_conflict=0
 present_unexported=0
-release_mismatch_modules=0
+vendor_ramdisk_release_mismatch_modules=$(meta_value release_mismatch_modules "$AUDIT_META")
+vendor_ramdisk_release_note=expected short-release modules; CONFIG_MODVERSIONS same_magic ignores the release field while CRC and vermagic flags remain enforced
 flag_mismatch_modules=0
 stock_template_size_bytes=100663296
 boot_header_version=4
@@ -128,6 +137,8 @@ candidate_sha=$(sha256sum "$CANDIDATE" | awk '{print $1}')
   printf 'stock_boot_sha256=%s\n' "$EXPECTED_STOCK_BOOT_SHA256"
   printf 'input_image=%s\n' "$IMAGE"
   printf 'input_image_sha256=%s\n' "$EXPECTED_IMAGE_SHA256"
+  printf 'kernel_release=%s\n' "$BUILD_KERNEL_RELEASE"
+  printf 'stock_system_dlkm_release_pairing_pass=yes\n'
   printf 'module_audit_pass=yes\n'
   printf 'module_audit_report=%s\n' "$AUDIT_REPORT_DIR"
   printf 'pack_method=local-deterministic-header-v4\n'

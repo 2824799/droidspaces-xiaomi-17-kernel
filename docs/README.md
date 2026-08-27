@@ -1324,6 +1324,67 @@ device boot test:           not run
 的提交，可作为更完整、版本关系更清晰的后续基线；但在实机测试前，不能把静态
 全绿等同于已解决黑屏。
 
+#### 2026-08-27 R30 兼容候选启动后射频全失效与 release 配对修复
+
+上述四补丁候选后来通过 96 MiB stock 模板由 `fastboot boot` 成功进入 Android：
+`sys.boot_completed=1`、ADB、显示和主要 vendor 模块均正常。但 Wi-Fi、蓝牙、热点、
+移动数据、电话和射频全部不可用。运行模块数为 579，stock 为 670，差 91 个。
+缺失集合正好包括：
+
+~~~text
+bluetooth hci_uart btqca btpower bt_fm_swr
+cfg80211 mac80211 qca_cld3_peach_v2 rfkill
+wwan ppp_generic ppp_deflate ppp_mppe l2tp_ppp libarc4
+~~~
+
+直接根因不是 CRC/KMI，而是 Android 查找 system_dlkm 的 release 目录失败：
+
+~~~text
+candidate uname -r:
+6.12.69-android16-6-4k
+
+stock system_dlkm directory and module vermagic:
+6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
+~~~
+
+设备上不存在候选短 release 对应的 `system_dlkm/lib/modules` 目录，因此完整
+`modules.load` 树在加载前即被跳过。三棵 stock 模块树的扩展审查结果仍为零符号
+缺失、零 CRC mismatch、零 provider conflict、零 vermagic flag mismatch。开启
+`CONFIG_MODVERSIONS` 时，内核 `same_magic()` 比较会忽略 vermagic 的第一个 release
+字段，但 Android 用户态选择模块目录不会忽略它；这解释了“模块 ABI 可兼容但系统
+根本没有尝试加载”的表面矛盾。
+
+第一次加入 `common/workspace_status.json` 仍生成短 release。进一步检查发现构建机
+没有 `repo` 命令，构建脚本也没有传 `--repo_manifest`，Kleaf 的实际状态是：
+
+~~~text
+STABLE_SCMVERSIONS {}
+~~~
+
+构建脚本现已显式使用锁定的
+`/home/nahida/agents/tmp/kernel-work/source-locks/r30/checked-out-manifest.xml`，并在正式
+构建前验证 common SCMVERSION 非空。用全新 Bazel output root 隔离重建后：
+
+~~~text
+kernel release:         6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k
+Image SHA-256:          e2450f4f7ead1b1c9143f6d0af44aec293d0c7e039ec0ca276fb8550b7432ced
+vmlinux SHA-256:        40b23c7e82185190109e3d49a8d5be8911cfda562c83c96d5bae6fcfc3d4865f
+Module.symvers SHA-256: af77d02d0a3e1a7581e8cc416f3b05340364e6d3f3abc01cc2dfa119d09923ab
+vendor modules:         466 / 22474 imports / 0 issues
+boot size:              100663296 bytes
+boot SHA-256:           21ca6f1b7ecb6dd3b7831df98f29c807709775f8bee4df2a8fd2392952253a67
+~~~
+
+新候选位于：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260827T121717Z-stock-release/boot-r30-stock-compat-stock-template.img
+~~~
+
+结构审查与 vendor 模块审查已通过，且 kernel release 已与 stock system_dlkm 精确
+配对；截至记录时尚未重启设备测试。该镜像仍无有效小米 AVB 签名，只允许明确授权
+后的 `fastboot boot`，严禁 flash。
+
 ### 阶段 D：Droidspaces 单变量递增
 
 只有阶段 C 的 SIM、数据和 IMS 正常后，才按顺序加入：

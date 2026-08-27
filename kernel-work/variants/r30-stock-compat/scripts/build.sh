@@ -14,9 +14,15 @@ BUILD_ID="${BUILD_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 LOG_DIR="$LOG_ROOT/$BUILD_ID"
 ARTIFACT_DIR="$ARTIFACT_ROOT/$BUILD_ID"
 BAZEL_ROOT="$OUT_ROOT/bazel-user-root"
+REPO_MANIFEST="$ROOT/source-locks/r30/checked-out-manifest.xml"
+BAZEL_ROOT="${BAZEL_ROOT_OVERRIDE:-$BAZEL_ROOT}"
 
 [[ -x "$WORKTREE/tools/bazel" ]] || {
   echo "Missing worktree; run create-worktree.sh first" >&2
+  exit 1
+}
+[[ -f "$REPO_MANIFEST" ]] || {
+  echo "Missing pinned repo manifest: $REPO_MANIFEST" >&2
   exit 1
 }
 mkdir -p "$OUT_ROOT" "$LOG_DIR" "$ARTIFACT_DIR" "$META_DIR"
@@ -26,6 +32,7 @@ COMMON_ARGS=(
   --stdout_stderr_regex_allowlist="$WORKTREE/build/kernel/kleaf/spotless_log_regex.txt"
 )
 BUILD_ARGS=(
+  --repo_manifest="$WORKTREE:$REPO_MANIFEST"
   --jobs="$JOBS"
   --keep_going
   --make_jobs="$JOBS"
@@ -42,11 +49,21 @@ BUILD_ARGS=(
   printf 'jobs=%s\n' "$JOBS"
   printf 'worktree=%s\n' "$WORKTREE"
   printf 'output_user_root=%s\n' "$BAZEL_ROOT"
+  printf 'repo_manifest=%s\n' "$REPO_MANIFEST"
   printf 'artifact_dir=%s\n' "$ARTIFACT_DIR"
   printf 'host=%s\n' "$(uname -a)"
 } | tee "$LOG_DIR/build-metadata.txt" > "$META_DIR/last-build.txt"
 
 cd "$WORKTREE"
+KLEAF_USE_KLEAF_LOCALVERSION=true \
+KLEAF_REPO_MANIFEST="$WORKTREE:$REPO_MANIFEST" \
+  build/kernel/kleaf/workspace_status.sh > "$LOG_DIR/workspace-status.txt"
+grep -Eq '^STABLE_SCMVERSIONS .*"common": "-[^"]+"' \
+  "$LOG_DIR/workspace-status.txt" || {
+    echo "Kleaf workspace status did not resolve common SCMVERSION" >&2
+    cat "$LOG_DIR/workspace-status.txt" >&2
+    exit 1
+  }
 printf '%q ' tools/bazel "${COMMON_ARGS[@]}" build "${BUILD_ARGS[@]}" "$TARGET" > "$LOG_DIR/build-command.txt"
 printf '\n' >> "$LOG_DIR/build-command.txt"
 

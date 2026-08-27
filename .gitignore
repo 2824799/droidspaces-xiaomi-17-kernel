@@ -58,3 +58,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Ephemeral pointer to the device session that is currently running
+/kernel-work/variants/*/metadata/active-device-test.txt
