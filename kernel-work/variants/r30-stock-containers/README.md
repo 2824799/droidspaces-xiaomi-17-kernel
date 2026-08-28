@@ -101,6 +101,32 @@ SYSVIPC、mqueue 和 devtmpfs smoke test 全部通过。
 该候选没有有效 Xiaomi AVB 签名，只允许 `fastboot boot` 临时运行，禁止 flash，
 禁止使用 slot B。正常重启会回到持久化 `boot_a`。
 
+## 近五小时日常使用稳定性复核
+
+2026-08-28 12:25 CST 对同一次临时启动进行了只读日志复核。最终 uptime 为
+17707.54 秒，boot ID 未变化；670 个模块及 `rust_binder` 均保持加载。保留的
+dmesg 窗口中没有 panic/oops/BUG、lockup/stall、内存破坏、KMI/签名错误、存储致命
+错误或无线/基带子系统崩溃；内核 `oom_kill=0`。启动稳定后没有新的 Java/native
+fatal、ANR、crash 类进程退出、当天 tombstone 或 ANR trace。最终 Wi-Fi、蓝牙、
+cellular、IMS 和双卡注册状态正常，thermal status 为 0。
+
+启动 07:31:03 曾有一次 `system_server` 的
+`ComputerEngine.shouldFilterApplication` `StackOverflowError`，自动重启后
+没有复发。这条其实已经存在于此前短测日志中，但先前总结漏记；相同调用栈也存在于
+`r30-stock-compat` 的前一轮实机测试，所以不是本容器补丁新引入。另记录到三组
+最终完成的 keystore watchdog 延迟，以及 15 个 Android 后台 LOW_MEMORY 回收；二者
+均未形成内核 OOM 或 crash。
+
+内核 ring buffer 因 vendor 日志量已覆盖中间时段，所以本结论能确认没有重启/panic
+并覆盖启动早期和最终窗口，但不是对中间每一条非致命 kernel warning 的完整证明。
+
+```text
+/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stability-review/
+```
+
+该结果是普通使用稳定性通过，不替代完整 Droidspaces 生命周期、过夜、休眠唤醒或
+压力测试。
+
 ## 补丁顺序
 
 `patches/common/series` 在 6 个 stock 兼容补丁之后包含：

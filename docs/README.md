@@ -1647,6 +1647,48 @@ KSU root:                  pass
 热点切换，也未完成完整 Droidspaces 用户态生命周期、休眠唤醒或长时间压力测试。
 候选继续只允许临时运行；正常重启会回到持久化 `boot_a`。
 
+#### 2026-08-28 上午近五小时日常使用稳定性复核
+
+用户从临时启动后持续日常使用到 12:25。只通过 ADB 读取日志和状态，没有重启、
+刷写、拨号、短信、热点切换或 radio/APN/IMS 修改。最终 uptime 为 17707.54 秒
+（4 小时 55 分 7 秒），boot ID 未变化，说明期间没有重启。运行内核仍是正式候选，
+670 个模块仍全部加载，`rust_binder` 仍为 Live。
+
+复核结果没有发现阻断性内核或射频故障：保留下来的 dmesg 窗口中 panic/oops/BUG、
+lockup/stall/hung task、KASAN/KFENCE、模块 KMI/签名错误、存储致命错误和无线/基带
+子系统崩溃均为 0；`oom_kill=0`。Android 在启动稳定后没有新的 Java fatal、
+native fatal、ANR、crash 类 `ApplicationExitInfo`，也没有产生当天的新 tombstone
+或 ANR trace。最终状态中 Wi-Fi 已连接并 VALIDATED，蓝牙为 ON 且设备已连接，双卡
+语音/数据仍为 IN_SERVICE，cellular 与 IMS 均有 VALIDATED 记录。thermal status 为 0，
+最终电池约 34°C、CPU 传感器约 47–54°C。
+
+本次也补记了一条此前短测总结漏掉的启动期异常：07:31:03 首个
+`system_server` 在 `ComputerEngine.shouldFilterApplication` 中发生
+`StackOverflowError`，随后自动重启；最终 `system_server.start_count=2`，
+第二个进程此后连续运行，没有再次 fatal。完全相同的调用栈在
+`r30-stock-compat` 的 2026-08-27 19:34:36 测试中也出现过，因此它不是容器配置
+补丁新引入的问题；但仅凭这一点还不能断言其最终根因与 R30 基线或系统用户态无关。
+
+另有两个非阻断观察项：11:08–11:09 有 15 个后台进程被 Android 以
+`LOW_MEMORY` 回收，但内核没有 OOM kill，复核时 `MemAvailable` 约 5.3 GiB；
+12:10、12:12、12:18 的三组 keystore/远程密钥供应操作触发 watchdog，约
+6.43–6.56 秒后均完成，没有造成进程崩溃。
+
+由于 vendor 日志量很大，内核 ring buffer 已覆盖中间时段；当前可直接复核的是启动
+早期约 61–269 秒和末段约 16699–17707 秒。因此可以确认没有重启/panic，并确认保留
+窗口无上述严重错误，但不能声称被覆盖的中间区间绝对没有一次性非致命 warning。
+`/sys/fs/pstore` 中的内容属于当前启动之前的 reboot-to-bootloader 记录，不是本轮
+运行的新 panic。
+
+日志与审查摘要：
+
+~~~text
+/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stability-review/
+~~~
+
+结论是该候选通过了近五小时普通日常使用稳定性复核，可以进入完整 Droidspaces
+用户态生命周期测试；这不等同于已经完成过夜、休眠唤醒或压力测试。
+
 ### 阶段 E：小米完整源码可行性短审计
 
 该阶段与可用 GKI 主路线并行但不混淆。只建立最小 `popsicle-w-oss` 工作区并运行 Bazel query/build；遇到第 19.4 节定义的不可替代强依赖立即停止，不无限寻找内部仓库。
