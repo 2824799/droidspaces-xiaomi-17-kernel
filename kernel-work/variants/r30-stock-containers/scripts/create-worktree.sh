@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/nahida/agents/tmp/kernel-work"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$ROOT/.." && pwd)"
+relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
 UPSTREAM="$ROOT/upstream/android16-6.12-2026-03-r30"
 WORKTREE="$ROOT/worktrees/$VARIANT"
@@ -71,8 +74,8 @@ done < <(find "$PATCH_DIR" -type f -name series -print | sort)
 {
   printf 'variant=%s\n' "$VARIANT"
   printf 'created_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf 'upstream=%s\n' "$UPSTREAM"
-  printf 'worktree=%s\n' "$WORKTREE"
+  printf 'upstream=%s\n' "$(relative_path "$UPSTREAM")"
+  printf 'worktree=%s\n' "$(relative_path "$WORKTREE")"
   printf 'patch_series_count=%s\n' "$(find "$PATCH_DIR" -type f -name series | wc -l)"
 } > "$META_DIR/worktree.txt"
 

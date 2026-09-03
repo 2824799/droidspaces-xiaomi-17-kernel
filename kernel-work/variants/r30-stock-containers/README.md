@@ -1,7 +1,8 @@
 # R30 Droidspaces container variant
 
-本目录从已通过实机无线/蜂窝验收的 `r30-stock-compat` 独立复制而来，不修改
-`kernel-work/upstream/`，也不污染已验收的 `r30-stock-compat`。
+本目录是面向 Xiaomi 17 `pudding` 的 Android Common Kernel R30
+Droidspaces container 变体。不修改 `kernel-work/upstream/`；补丁只在可丢弃的
+worktree 中应用。
 
 ## 配置边界
 
@@ -13,13 +14,13 @@ CONFIG_IPC_NS=y
 CONFIG_SYSVIPC=y
 CONFIG_POSIX_MQUEUE=y
 CONFIG_DEVTMPFS=y
+CONFIG_USER_NS=y
 ```
 
 刻意保持关闭：
 
 ```text
 CONFIG_DEVTMPFS_MOUNT=n
-CONFIG_USER_NS=n
 CONFIG_CGROUP_DEVICE=n
 ```
 
@@ -36,6 +37,17 @@ sched_entity(se)=192
 
 `init_ipc_ns` 和 `put_ipc_ns` 使用真实导出，没有加入公开稳定 GKI symbol
 list；没有伪造 CRC，也没有关闭 MODVERSIONS 或 strict KMI。
+
+## 本次变更：启用 User Namespace
+
+新增补丁 0014-enable-user-namespaces.patch，将 CONFIG_USER_NS 设为 y，用于
+Docker、Flatpak、Bubblewrap、浏览器沙箱以及需要用户命名空间的桌面程序。此前已验收
+的 20260827T230746Z-rust-kmi-fixed 仍保留在 artifacts 中作为回滚基线；启用该选项
+后必须重新完成 strict ABI/KMI、stock 模块审查和设备验证。本次按要求不执行 fastboot boot。
+
+本次 User Namespace 候选已经完成编译、strict ABI/KMI 和 569 个 stock 模块导入审查。
+在一台 Xiaomi 17 `pudding` 测试设备上验证了启动、`CONFIG_USER_NS=y` 和
+`unshare -Ur` 运行时测试。设备测试记录只保留在本地，不包含设备序列号或备份路径。
 
 ## 首版实机测试与 Rust KMI 漏审
 
@@ -61,7 +73,7 @@ removed:     0
 CRC changed: 0
 ```
 
-## 修复后正式候选
+## 修复后的历史候选
 
 strict ABI/KMI 构建、证书/release 检查和扩展 consumer 审查均通过：
 
@@ -77,26 +89,16 @@ missing/CRC/provider:        0/0/0
 strict ABI/KMI:              pass
 ```
 
-产物：
+最终验证摘要：
 
-```text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T230746Z-rust-kmi-fixed/
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T232346Z-rust-kmi-fixed-stock-template/boot-r30-stock-containers-stock-template.img
-boot size:    100663296
-boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
-```
+生成的 `Image` 和 stock-template boot 镜像位于被 `.gitignore` 忽略的
+`kernel-work/artifacts/` 下，不随仓库发布。
 
 修复后候选已通过一次 `fastboot boot` 实机复测：15 秒恢复 ADB，Android 完成
 启动；模块数由首版的 669 恢复为 670，stock `rust_binder` 正常加载，dmesg 中
 Rust KMI 错误、签名拒绝和 panic/oops 均为 0。Wi-Fi 已连接并 VALIDATED，蓝牙为
 ON 且设备已连接，cellular 与两路 IMS 网络均有 VALIDATED 记录。PID/IPC namespace、
 SYSVIPC、mqueue 和 devtmpfs smoke test 全部通过。
-
-实机日志：
-
-```text
-/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260827T233007Z-rust-kmi-fixed-device-test/
-```
 
 该候选没有有效 Xiaomi AVB 签名，只允许 `fastboot boot` 临时运行，禁止 flash，
 禁止使用 slot B。正常重启会回到持久化 `boot_a`。
@@ -120,14 +122,24 @@ cellular、IMS 和双卡注册状态正常，thermal status 为 0。
 内核 ring buffer 因 vendor 日志量已覆盖中间时段，所以本结论能确认没有重启/panic
 并覆盖启动早期和最终窗口，但不是对中间每一条非致命 kernel warning 的完整证明。
 
-```text
-/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stability-review/
-```
-
 该结果是普通使用稳定性通过，不替代完整 Droidspaces 生命周期、过夜、休眠唤醒或
 压力测试。
 
 ## 补丁顺序
+
+## 可迁移构建流程
+
+从仓库根目录执行以下步骤；脚本会根据自身位置找到 `kernel-work/`，不依赖仓库所在目录：
+
+```sh
+kernel-work/variants/r30-stock-containers/scripts/create-worktree.sh
+kernel-work/variants/r30-stock-containers/scripts/build.sh
+kernel-work/variants/r30-stock-containers/scripts/audit.sh
+kernel-work/variants/r30-stock-containers/scripts/verify.sh
+STOCK_BOOT=backup/your-stock-boot.img kernel-work/variants/r30-stock-containers/scripts/package-stock-boot.sh
+```
+
+`STOCK_BOOT` 必须指向你自己取得并校验过的 stock boot 镜像；stock 固件、设备备份、工具和构建产物不属于公开仓库。
 
 `patches/common/series` 在 6 个 stock 兼容补丁之后包含：
 
@@ -139,6 +151,7 @@ cellular、IMS 和双卡注册状态正常，thermal status 为 0。
 0011-enable-devtmpfs.patch
 0012-preserve-stock-rust-kmi-for-sysvipc.patch
 0013-update-abi-after-rust-kmi-preservation.patch
+0014-enable-user-namespaces.patch
 ```
 
 当前只完成了内核能力 smoke test；完整 Droidspaces 用户态创建/销毁流程、休眠唤醒

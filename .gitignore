@@ -57,6 +57,13 @@ Image.lz4
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.env
+.env.*
+*.key
+*.pem
+*.p12
+.idea/
+.vscode/
 
 # Ephemeral pointer to the device session that is currently running
 /kernel-work/variants/*/metadata/active-device-test.txt

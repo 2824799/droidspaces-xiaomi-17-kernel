@@ -1,6 +1,10 @@
 # Droidspaces / 小米 17 内核适配完整归档
 
-归档整理日期：2026-08-25；最后更新：2026-08-27（Asia/Shanghai）
+归档整理日期：2026-08-25；公开版整理：2026-09-03（Asia/Shanghai）
+
+公开版当前结论：`r30-stock-containers` 的 User Namespace 候选已在一台 Xiaomi 17
+`pudding` 测试设备上完成启动和 `unshare -Ur` smoke test。本文其余章节保留历史实验
+时间线；旧候选的 fastboot/AVB 限制不应被误读为当前公开仓库包含可直接刷写的镜像。
 
 本文是本项目唯一保留的技术文档，合并了 2026-08-21 至 2026-08-24 的构建、打包、KernelSU 配对、KMI/CRC 审计、实机启动、Wi-Fi/RFKILL、蜂窝/IMS 排查和设备恢复记录，并补充了 2026-08-26 的当前完整字库、小米公开源码依赖审计、第三方 Droidspaces 补丁路线和非官方 BL 解锁链信息。
 
@@ -90,7 +94,7 @@ dtbo_b.img        all-zero
 
 当前升级后系统的完整备份位于：
 
-`/home/nahida/agents/tmp/backup/字库备份_1787746457069/`
+`backup/字库备份_1787746457069/`
 
 只读检查结果：
 
@@ -224,7 +228,7 @@ boot public key SHA-1: 8256e695b81d1eb6dd0b1ce5d08b9c73cbb5e5b6
 一个 MagiskBoot 模板候选被接受，pstore 确认自定义内核实际运行：
 
 ~~~text
-Linux version 6.12.69-android16-6-4k (nahida@nahida)
+Linux version 6.12.69-android16-6-4k (builder@host)
 ~~~
 
 约 0.44 秒后发生：
@@ -947,7 +951,7 @@ af1e5cfcde01524514096d9d801b03fc8d128d48add4e61176e99d9d85020287  vbmeta_b.img
 
 到货、尚未升级系统时的完整备份位于：
 
-`/run/media/nahida/E0702D94702D7288/d/tools/root/字库备份_1784207149608/`
+`backup/字库备份_1784207149608/`
 
 旧、当前 `boot_a` 已直接解包并复算：
 
@@ -1305,7 +1309,7 @@ audit_pass:                true
 审查通过后生成了 96 MiB 原厂模板候选：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260826T234152Z/boot-r30-stock-compat-stock-template.img
+kernel-work/artifacts/r30-stock-compat-stock-template/20260826T234152Z/boot-r30-stock-compat-stock-template.img
 size:                       100663296 bytes
 SHA-256:                    d06380f9ea23cf834cf5f951bbbf7cae8e171ece44117b000c6e0df0ba0829dc
 header version:             4
@@ -1365,7 +1369,7 @@ STABLE_SCMVERSIONS {}
 ~~~
 
 构建脚本随后显式使用锁定的
-/home/nahida/agents/tmp/kernel-work/source-locks/r30/checked-out-manifest.xml，并在正式
+kernel-work/source-locks/r30/checked-out-manifest.xml，并在正式
 构建前验证 common SCMVERSION 非空。release 配对候选变为：
 
 ~~~text
@@ -1422,7 +1426,7 @@ boot SHA-256:           aafd350bbd00a2c7a2267d04e3d1745b08aa6cf28938514cc80f7ea5
 最终 boot：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-compat-stock-template/20260827T124841Z-stock-cert-v2/boot-r30-stock-compat-stock-template.img
+kernel-work/artifacts/r30-stock-compat-stock-template/20260827T124841Z-stock-cert-v2/boot-r30-stock-compat-stock-template.img
 ~~~
 
 使用 fastboot boot 临时启动后的自动验收：
@@ -1448,7 +1452,7 @@ l2tp_ppp 和 libarc4。用户随后从界面侧确认当前“好像所有东西
 实机日志：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/logs/r30-stock-compat/device-tests/20260827T130221Z-stock-cert-device-test/
+kernel-work/logs/r30-stock-compat/device-tests/20260827T130221Z-stock-cert-device-test/
 ~~~
 
 工程结论：当前可用基线是“R30 + 四项官方 R31 Xiaomi 兼容提交 + stock release
@@ -1522,8 +1526,8 @@ strict KMI:                pass
 最终构建与 96 MiB 原厂模板候选：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers/
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T153000Z-final-containers-stock-template/boot-r30-stock-containers-stock-template.img
+kernel-work/artifacts/r30-stock-containers/20260827T152000Z-final-containers/
+kernel-work/artifacts/r30-stock-containers-stock-template/20260827T153000Z-final-containers-stock-template/boot-r30-stock-containers-stock-template.img
 boot size:    100663296 bytes
 boot SHA-256: a1f844771b61ee75468d943f95c2753d1224ad5c968618145bbae2a9c9b7f715
 ~~~
@@ -1604,12 +1608,12 @@ vermagic flag mismatch:      0
 
 ~~~text
 Image:
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers/20260827T230746Z-rust-kmi-fixed/Image
+kernel-work/artifacts/r30-stock-containers/20260827T230746Z-rust-kmi-fixed/Image
 Image SHA-256:
 8dd40a7250932fd94f7023be68c624522da9983783c4236be4ff4d9824a1d284
 
 boot:
-/home/nahida/agents/tmp/kernel-work/artifacts/r30-stock-containers-stock-template/20260827T232346Z-rust-kmi-fixed-stock-template/boot-r30-stock-containers-stock-template.img
+kernel-work/artifacts/r30-stock-containers-stock-template/20260827T232346Z-rust-kmi-fixed-stock-template/boot-r30-stock-containers-stock-template.img
 boot size:    100663296
 boot SHA-256: 6348a94928c9298135fa07c2f44c89b36731af21a3bfcfabc53f99d5aedfdbaf
 ~~~
@@ -1639,7 +1643,7 @@ KSU root:                  pass
 日志目录：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260827T233007Z-rust-kmi-fixed-device-test/
+kernel-work/logs/r30-stock-containers/device-tests/20260827T233007Z-rust-kmi-fixed-device-test/
 ~~~
 
 至此，修复后的最小容器内核已经通过 strict 构建、569 模块/28290 导入静态审查、
@@ -1683,7 +1687,7 @@ native fatal、ANR、crash 类 `ApplicationExitInfo`，也没有产生当天的�
 日志与审查摘要：
 
 ~~~text
-/home/nahida/agents/tmp/kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stability-review/
+kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stability-review/
 ~~~
 
 结论是该候选通过了近五小时普通日常使用稳定性复核，可以进入完整 Droidspaces

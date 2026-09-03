@@ -11,3 +11,4 @@
 0011-enable-devtmpfs.patch
 0012-preserve-stock-rust-kmi-for-sysvipc.patch
 0013-update-abi-after-rust-kmi-preservation.patch
+0014-enable-user-namespaces.patch

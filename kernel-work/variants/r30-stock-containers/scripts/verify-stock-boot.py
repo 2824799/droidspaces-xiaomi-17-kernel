@@ -96,11 +96,11 @@ def main() -> int:
     image_data = args.image.read_bytes()
 
     print("[inputs]")
-    print(f"candidate={args.candidate.resolve()}")
+    print(f"candidate={args.candidate}")
     print(f"candidate_sha256={sha256(candidate_data)}")
-    print(f"stock_template={args.stock_boot.resolve()}")
+    print(f"stock_template={args.stock_boot}")
     print(f"stock_template_sha256={sha256(stock_data)}")
-    print(f"input_Image={args.image.resolve()}")
+    print(f"input_Image={args.image}")
     print(f"input_Image_sha256={sha256(image_data)}")
 
     print("\n[candidate_header]")

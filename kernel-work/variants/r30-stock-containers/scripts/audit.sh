@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/nahida/agents/tmp/kernel-work"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$ROOT/.." && pwd)"
+relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
 ARTIFACT_DIR="${1:-$ROOT/artifacts/$VARIANT/latest}"
 BASELINE="$ROOT/cache/device-baseline/pudding-stock-20260826"
@@ -31,12 +34,12 @@ system_count=$(find "$SYSTEM_MODULES_DIR" -type f -name '*.ko' | wc -l)
 {
   printf 'audit_id=%s\n' "$AUDIT_ID"
   printf 'started_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf 'artifact_dir=%s\n' "$ARTIFACT_DIR"
+  printf 'artifact_dir=%s\n' "$(relative_path "$ARTIFACT_DIR")"
   printf 'image_sha256=%s\n' "$(sha256sum "$ARTIFACT_DIR/Image" | awk '{print $1}')"
   printf 'vmlinux_sha256=%s\n' "$(sha256sum "$ARTIFACT_DIR/vmlinux" | awk '{print $1}')"
   printf 'module_symvers_sha256=%s\n' "$(sha256sum "$ARTIFACT_DIR/Module.symvers" | awk '{print $1}')"
-  printf 'vendor_modules_dir=%s\n' "$VENDOR_MODULES_DIR"
-  printf 'system_dlkm_modules_dir=%s\n' "$SYSTEM_MODULES_DIR"
+  printf 'vendor_modules_dir=%s\n' "$(relative_path "$VENDOR_MODULES_DIR")"
+  printf 'system_dlkm_modules_dir=%s\n' "$(relative_path "$SYSTEM_MODULES_DIR")"
   printf 'vendor_ramdisk_module_count=%s\n' "$vendor_count"
   printf 'system_dlkm_module_count=%s\n' "$system_count"
 } > "$REPORT_DIR/audit-context.txt"
@@ -151,7 +154,7 @@ lines = [
     f"image_sha256={context['image_sha256']}",
     f"vmlinux_sha256={context['vmlinux_sha256']}",
     f"module_symvers_sha256={context['module_symvers_sha256']}",
-    f"report_dir={report_dir}",
+    f"report_dir={report_dir.relative_to(pathlib.Path(sys.argv[3]).resolve().parents[4])}",
     f"vendor_summary_sha256={hashlib.sha256(vendor_summary_path.read_bytes()).hexdigest()}",
     f"system_dlkm_summary_sha256={hashlib.sha256(system_summary_path.read_bytes()).hexdigest()}",
     f"rust_binder_report_sha256={hashlib.sha256(rust_report.read_bytes()).hexdigest()}",

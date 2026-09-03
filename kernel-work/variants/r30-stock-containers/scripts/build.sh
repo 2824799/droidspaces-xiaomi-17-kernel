@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/nahida/agents/tmp/kernel-work"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$ROOT/.." && pwd)"
+relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
 WORKTREE="$ROOT/worktrees/$VARIANT"
 OUT_ROOT="$ROOT/out/$VARIANT"
@@ -47,10 +50,10 @@ BUILD_ARGS=(
   printf 'variant=%s\n' "$VARIANT"
   printf 'target=%s\n' "$TARGET"
   printf 'jobs=%s\n' "$JOBS"
-  printf 'worktree=%s\n' "$WORKTREE"
-  printf 'output_user_root=%s\n' "$BAZEL_ROOT"
-  printf 'repo_manifest=%s\n' "$REPO_MANIFEST"
-  printf 'artifact_dir=%s\n' "$ARTIFACT_DIR"
+  printf 'worktree=%s\n' "$(relative_path "$WORKTREE")"
+  printf 'output_user_root=%s\n' "$(relative_path "$BAZEL_ROOT")"
+  printf 'repo_manifest=%s\n' "$(relative_path "$REPO_MANIFEST")"
+  printf 'artifact_dir=%s\n' "$(relative_path "$ARTIFACT_DIR")"
   printf 'host=%s\n' "$(uname -a)"
 } | tee "$LOG_DIR/build-metadata.txt" > "$META_DIR/last-build.txt"
 

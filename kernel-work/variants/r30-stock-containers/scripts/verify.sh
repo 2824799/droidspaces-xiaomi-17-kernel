@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/nahida/agents/tmp/kernel-work"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$ROOT/.." && pwd)"
+relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
 UPSTREAM="$ROOT/upstream/android16-6.12-2026-03-r30"
 WORKTREE="$ROOT/worktrees/$VARIANT"
@@ -41,7 +44,7 @@ PY
 
 {
   printf 'verified_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf 'artifact_dir=%s\n\n' "$ARTIFACT_DIR"
+  printf 'artifact_dir=%s\n\n' "$(relative_path "$ARTIFACT_DIR")"
   echo '[Image]'
   file "$ARTIFACT_DIR/Image"
   stat -c 'size=%s bytes' "$ARTIFACT_DIR/Image"
@@ -100,9 +103,9 @@ kernel_release=$(strings "$ARTIFACT_DIR/Image" | sed -n 's/^Linux version \([^ ]
   printf 'stock_module_signing_cert_trusted=yes\n'
   printf 'stock_module_signing_cert_serial=%s\n' "$stock_cert_serial"
   printf 'stock_module_signing_cert_sha256=%s\n' "$stock_cert_sha"
-  printf 'artifact_dir=%s\n' "$ARTIFACT_DIR"
-  printf 'verification=%s\n' "$REPORT"
-  printf 'sha256sums=%s\n' "$ARTIFACT_DIR/SHA256SUMS"
+  printf 'artifact_dir=%s\n' "$(relative_path "$ARTIFACT_DIR")"
+  printf 'verification=%s\n' "$(relative_path "$REPORT")"
+  printf 'sha256sums=%s\n' "$(relative_path "$ARTIFACT_DIR/SHA256SUMS")"
 } | tee "$META_DIR/build-result.txt"
 
 echo "Verification report: $REPORT"

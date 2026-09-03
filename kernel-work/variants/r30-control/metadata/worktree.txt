@@ -1,5 +1,0 @@
-variant=r30-control
-created_utc=2026-08-26T14:15:57Z
-upstream=/home/nahida/agents/tmp/kernel-work/upstream/android16-6.12-2026-03-r30
-worktree=/home/nahida/agents/tmp/kernel-work/worktrees/r30-control
-patch_series_count=0

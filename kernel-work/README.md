@@ -31,7 +31,13 @@ kernel-work/
 6. `out/`、`logs/` 和 `artifacts/` 按变体和时间分目录，不向项目根目录写构建文件。
 7. 每个候选必须能从干净 `upstream` + `source-locks` + 对应 `variant` 完整复建。
 
-## 第一条构建线
+## 当前构建线
 
-当前第一条变体为 `variants/r30-control/`。它用于纯 R30 控制内核，初始阶段不加入 Droidspaces、KernelSU、RFKILL 功能改动或框架注入。
+当前公开变体为 `variants/r30-stock-containers/`。它针对 Xiaomi 17
+(`pudding` / SM8850) 的 Android Common Kernel R30 GKI 基线，启用
+Droidspaces 所需的 PID namespace、IPC namespace、SYSVIPC、POSIX mqueue、
+devtmpfs 和 User Namespace，同时保留 stock module/KMI 兼容性审计流程。
 
+构建所需的 Android 源码、stock boot 镜像、设备备份和生成产物均属于本地
+工作资料，不提交到公开仓库；脚本通过自身位置定位 `kernel-work/`，因此
+整个项目可以移动到其他目录后继续使用。

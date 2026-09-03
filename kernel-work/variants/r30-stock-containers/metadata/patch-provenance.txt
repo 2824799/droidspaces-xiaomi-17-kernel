@@ -59,3 +59,7 @@ patch_13_generated_by=//common:kernel_aarch64_abi_update
 patch_13_update_exit=4 as documented by Kleaf when an ABI difference is detected after updating the snapshot
 patch_13_hand_authored_abi_or_crc=no
 patch_13_stock_rust_binder_validation=234 imports checked; missing 0; CRC mismatch 0; provider conflict 0
+patch_14_commit=local-userns
+patch_14_subject=LOCAL: enable User Namespace for containers and sandboxed workloads
+patch_14_config=CONFIG_USER_NS=y
+patch_14_validation=569 stock modules audited; unshare -Ur smoke test passed on Xiaomi 17 pudding

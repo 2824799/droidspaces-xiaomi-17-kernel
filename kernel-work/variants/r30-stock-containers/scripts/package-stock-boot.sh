@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/nahida/agents/tmp/kernel-work"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd -- "$ROOT/.." && pwd)"
+relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
-STOCK_BOOT="${STOCK_BOOT:-/home/nahida/agents/tmp/backup/字库备份_1787746457069/boot_a.img}"
+STOCK_BOOT="${STOCK_BOOT:?Set STOCK_BOOT to a verified stock boot image}"
 IMAGE="${IMAGE:-$ROOT/artifacts/$VARIANT/latest/Image}"
 MAGISKBOOT="${MAGISKBOOT:-$ROOT/tools/magiskboot-arm64}"
 VERIFY_SCRIPT="$ROOT/variants/$VARIANT/scripts/verify-stock-boot.py"
@@ -34,6 +37,7 @@ done
 EXPECTED_IMAGE_SHA256=$(meta_value image_sha256 "$BUILD_META")
 AUDIT_IMAGE_SHA256=$(meta_value image_sha256 "$AUDIT_META")
 AUDIT_REPORT_DIR=$(meta_value report_dir "$AUDIT_META")
+[[ "$AUDIT_REPORT_DIR" = /* ]] || AUDIT_REPORT_DIR="$PROJECT_ROOT/$AUDIT_REPORT_DIR"
 [[ -n "$EXPECTED_IMAGE_SHA256" ]] || { echo "Missing image_sha256 in build metadata" >&2; exit 1; }
 [[ "$(meta_value variant "$BUILD_META")" == "$VARIANT" ]] || { echo "Build metadata variant mismatch" >&2; exit 1; }
 [[ "$(meta_value audit_pass "$AUDIT_META")" == yes ]] || { echo "Module audit has not passed" >&2; exit 1; }
@@ -169,21 +173,21 @@ candidate_sha=$(sha256sum "$ARTIFACT_DIR/boot-r30-stock-containers-stock-templat
   printf 'build_id=%s\n' "$BUILD_ID"
   printf 'built_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'variant=%s\n' "$VARIANT"
-  printf 'stock_boot=%s\n' "$STOCK_BOOT"
+  printf 'stock_boot=%s\n' "$(relative_path "$STOCK_BOOT")"
   printf 'stock_boot_sha256=%s\n' "$EXPECTED_STOCK_BOOT_SHA256"
-  printf 'input_image=%s\n' "$IMAGE"
+  printf 'input_image=%s\n' "$(relative_path "$IMAGE")"
   printf 'input_image_sha256=%s\n' "$EXPECTED_IMAGE_SHA256"
   printf 'module_audit_pass=yes\n'
-  printf 'module_audit_report=%s\n' "$AUDIT_REPORT_DIR"
+  printf 'module_audit_report=%s\n' "$(relative_path "$AUDIT_REPORT_DIR")"
   printf 'vendor_modules_audited=466\n'
   printf 'system_dlkm_modules_audited=103\n'
   printf 'total_modules_audited=569\n'
   printf 'total_imports_checked=28290\n'
   printf 'stock_rust_binder_imports_checked=234\n'
   printf 'stock_rust_binder_audit_pass=yes\n'
-  printf 'magiskboot=%s\n' "$MAGISKBOOT"
+  printf 'magiskboot=%s\n' "$(relative_path "$MAGISKBOOT")"
   printf 'magiskboot_sha256=%s\n' "$EXPECTED_MAGISKBOOT_SHA256"
-  printf 'candidate=%s\n' "$ARTIFACT_DIR/boot-r30-stock-containers-stock-template.img"
+  printf 'candidate=%s\n' "$(relative_path "$ARTIFACT_DIR/boot-r30-stock-containers-stock-template.img")"
   printf 'candidate_size=100663296\n'
   printf 'candidate_sha256=%s\n' "$candidate_sha"
   printf 'magiskboot_verify_exit=%s\n' "$magiskboot_verify_exit"
