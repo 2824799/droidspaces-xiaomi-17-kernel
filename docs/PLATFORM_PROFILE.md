@@ -1,6 +1,7 @@
-# Xiaomi 17 / HyperOS 4.0.0.9 platform profile
+# Xiaomi 17 / HyperOS 4.0.0.16 platform profile
 
-本分支用于记录 Xiaomi 17 `pudding` 在指定 stock 软件基线上的 Droidspaces 内核适配。
+本分支用于记录 Xiaomi 17 `pudding` 当前运行的 HyperOS 4.0.0.16 stock 软件基线，以及
+此前 `4.0.0.9` 内核候选迁移到当前系统时需要满足的条件。
 
 ## Version identity
 
@@ -11,14 +12,15 @@
 | Device codename | `pudding` |
 | SoC / platform | Qualcomm SM8850 / `canoe` |
 | Android release | `17` |
-| Settings version | `4.0.0.9.XPCCNXM.D00` |
-| HyperOS package | HyperOS 4.0.0.9 card-flash package |
+| Settings version | `4.0.0.16.XPCCNXM.D00` |
+| HyperOS package | HyperOS 4.0.0.16 OTA package |
 | Build ID | `CP2A.260605.016` |
-| Build incremental | `OS4.0.0.9.XPCCNXM` |
-| Build fingerprint | `Xiaomi/pudding/pudding:17/CP2A.260605.016/OS4.0.0.9.XPCCNXM:user/release-keys` |
+| Build incremental | `OS4.0.0.16.XPCCNXM` |
+| Build fingerprint | `Xiaomi/pudding/pudding:17/CP2A.260605.016/OS4.0.0.16.XPCCNXM:user/release-keys` |
 | Security patch | `2026-08-01` |
 | Stock kernel release | `6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k` |
 | Kernel source baseline | Android Common Kernel `android16-6.12-2026-03_r30` |
+| Previous validation baseline | Android 17 / HyperOS `4.0.0.9.XPCCNXM.D00` |
 
 ## Device-confirmed evidence
 
@@ -27,13 +29,13 @@
 ~~~text
 [ro.build.version.release]: 17
 [ro.build.display.id]: CP2A.260605.016
-[ro.build.version.incremental]: OS4.0.0.9.XPCCNXM
-[ro.build.fingerprint]: Xiaomi/pudding/pudding:17/CP2A.260605.016/OS4.0.0.9.XPCCNXM:user/release-keys
+[ro.build.version.incremental]: OS4.0.0.16.XPCCNXM
+[ro.build.fingerprint]: Xiaomi/pudding/pudding:17/CP2A.260605.016/OS4.0.0.16.XPCCNXM:user/release-keys
 [ro.build.version.security_patch]: 2026-08-01
 ~~~
 
-旧 stock `vendor_boot` 备份仍记录过 `pudding:16/OS4.0.0.8.XPCCN:user`，那只是升级前的旧
-软件基线。它不能覆盖当前设备实际运行的 Android 17 / HyperOS 4.0.0.9 系统。
+旧 stock `boot_a` 备份仍记录过 `pudding:16/.../OS4.0.0.8.XPCCN:user`，那只是更早的旧
+软件基线。当前设备实际运行的是 Android 17 / HyperOS 4.0.0.16。
 
 ~~~sh
 adb shell getprop ro.build.version.release
@@ -44,7 +46,21 @@ adb shell getprop ro.build.fingerprint
 
 本分支名称使用设备现场确认的完整软件版本：
 
-`device/xiaomi17-android17-hyperos4.0.0.9-xpccnxm-d00`
+`device/xiaomi17-android17-hyperos4.0.0.16-xpccnxm-d00`
+
+## Boot binary comparison
+
+2026-09-03 通过 root ADB 只读提取了当前活动槽 `_b` 的 `boot_b`，并与仓库外保存的
+旧原厂 `boot_a` 进行了逐字节比较。两份文件均为 100663296 bytes、Android boot header
+v4，header 页和内嵌 kernel 区域完全相同。完整文件只有 574 bytes 不同，差异位于
+kernel 后的 AVB 元数据区域，内容反映旧的 `OS4.0.0.8` 与当前的 `OS4.0.0.16` 版本
+描述。两份原厂 kernel 的 SHA-256 均为：
+
+`574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2`
+
+这说明本次系统升级没有改变原厂 kernel payload，但不等于旧的自定义 boot 镜像可以
+直接刷写。自定义 payload 仍须嵌入当前 stock boot 模板，并重新处理当前 AVB 元数据；
+当前分支尚未完成 HyperOS 4.0.0.16 的完整 system_dlkm/vendor module 复审。
 
 ## Kernel scope
 
@@ -56,4 +72,5 @@ build 或不同 system/vendor/system_dlkm 组合可以直接复用。适配内�
 - [`docs/README.md`](README.md)：完整历史工程归档。
 
 生成的 boot 镜像、stock 固件、设备备份和设备唯一分区不属于公开仓库。修改 kernel
-payload 会破坏 Xiaomi AVB 签名，任何镜像都只能按对应设备的安全边界处理。
+payload 会破坏 Xiaomi AVB 签名，任何镜像都只能按对应设备的安全边界处理。此前发布的
+内核资产及其使用条件见 [`docs/RELEASE_R30_STOCK_CONTAINERS_20260828.md`](RELEASE_R30_STOCK_CONTAINERS_20260828.md)。
