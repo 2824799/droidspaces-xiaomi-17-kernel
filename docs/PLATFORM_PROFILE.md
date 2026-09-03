@@ -60,7 +60,13 @@ kernel 后的 AVB 元数据区域，内容反映旧的 `OS4.0.0.8` 与当前的 
 
 这说明本次系统升级没有改变原厂 kernel payload，但不等于旧的自定义 boot 镜像可以
 直接刷写。自定义 payload 仍须嵌入当前 stock boot 模板，并重新处理当前 AVB 元数据；
-当前分支尚未完成 HyperOS 4.0.0.16 的完整 system_dlkm/vendor module 复审。
+当前分支已完成该候选在 HyperOS 4.0.0.16 设备上的持久化 `boot_b` 刷写和运行时
+smoke test；完整的 `.16` 静态 system_dlkm/vendor module 复审仍沿用此前同一 kernel
+release 的审计结果，未单独重新生成完整审计报告。当前设备测试候选 boot SHA-256 为：
+
+`6066cebcbb1d1e6d0ec48db48ee5f45ea0c0aef14fedcd0ed279f12e6df2f633`
+
+测试记录见 [`docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md`](RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md)。
 
 ## Kernel scope
 
