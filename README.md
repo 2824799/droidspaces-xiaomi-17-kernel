@@ -51,6 +51,14 @@ backups are ignored by Git. See [`kernel-work/README.md`](kernel-work/README.md)
 for the workflow and [`docs/VALIDATION.md`](docs/VALIDATION.md) for the concise
 public validation summary.
 
+## Version profile on this branch
+
+This branch targets the Xiaomi 17 `pudding` (`25113PN0EC`) stock software profile:
+Android 17 target, the HyperOS 4.0.0.9 card-flash package, and stock kernel release
+`6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k`. See
+[`docs/PLATFORM_PROFILE.md`](docs/PLATFORM_PROFILE.md) for the evidence and the
+offline-verification note.
+
 ## Important safety boundary
 
 Do not flash a generated image unless you understand the bootloader, AVB,

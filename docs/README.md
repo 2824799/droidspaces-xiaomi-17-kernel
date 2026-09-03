@@ -3,8 +3,9 @@
 归档整理日期：2026-08-25；公开版整理：2026-09-03（Asia/Shanghai）
 
 公开版当前结论：`r30-stock-containers` 的 User Namespace 候选已在一台 Xiaomi 17
-`pudding` 测试设备上完成启动和 `unshare -Ur` smoke test。本文其余章节保留历史实验
-时间线；旧候选的 fastboot/AVB 限制不应被误读为当前公开仓库包含可直接刷写的镜像。
+`pudding` 测试设备上完成启动和 `unshare -Ur` smoke test。当前分支对应实际刷入的
+HyperOS 4.0.0.9 卡刷包；本文其余章节保留历史实验时间线。旧候选的 fastboot/AVB 限制
+不应被误读为当前公开仓库包含可直接刷写的镜像。
 
 本文是本项目唯一保留的技术文档，合并了 2026-08-21 至 2026-08-24 的构建、打包、KernelSU 配对、KMI/CRC 审计、实机启动、Wi-Fi/RFKILL、蜂窝/IMS 排查和设备恢复记录，并补充了 2026-08-26 的当前完整字库、小米公开源码依赖审计、第三方 Droidspaces 补丁路线和非官方 BL 解锁链信息。
 
@@ -49,6 +50,7 @@
 | 设备 | 小米 17 |
 | 型号 / 代号 | `25113PN0EC` / `pudding` |
 | SoC / 平台 | Qualcomm SM8850 / `canoe` |
+| 系统 | Android 17 / HyperOS 4.0.0.9（卡刷包） |
 | 活动槽位 | `_a` |
 | stock kernel release | `6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k` |
 | stock boot 内 Image SHA-256 | `574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2` |
