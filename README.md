@@ -54,10 +54,9 @@ public validation summary.
 ## Version profile on this branch
 
 This branch targets the Xiaomi 17 `pudding` (`25113PN0EC`) stock software profile:
-Android 17 target, the HyperOS 4.0.0.9 card-flash package, and stock kernel release
-`6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k`. See
-[`docs/PLATFORM_PROFILE.md`](docs/PLATFORM_PROFILE.md) for the evidence and the
-offline-verification note.
+Android 17, Settings version `4.0.0.9.XPCCNXM.D00`, the HyperOS 4.0.0.9 card-flash package,
+and stock kernel release `6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k`. See
+[`docs/PLATFORM_PROFILE.md`](docs/PLATFORM_PROFILE.md) for the device-confirmed identity.
 
 ## Important safety boundary
 

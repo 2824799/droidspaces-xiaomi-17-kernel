@@ -50,7 +50,7 @@ HyperOS 4.0.0.9 卡刷包；本文其余章节保留历史实验时间线。旧�
 | 设备 | 小米 17 |
 | 型号 / 代号 | `25113PN0EC` / `pudding` |
 | SoC / 平台 | Qualcomm SM8850 / `canoe` |
-| 系统 | Android 17 / HyperOS 4.0.0.9（卡刷包） |
+| 系统 | Android 17 / HyperOS 4.0.0.9.XPCCNXM.D00（卡刷包） |
 | 活动槽位 | `_a` |
 | stock kernel release | `6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k` |
 | stock boot 内 Image SHA-256 | `574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2` |
