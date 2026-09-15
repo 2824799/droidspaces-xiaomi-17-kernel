@@ -10,11 +10,14 @@ import struct
 
 PAGE_SIZE = 4096
 EXPECTED_STOCK_SIZE = 100663296
-EXPECTED_STOCK_BOOT_SHA256 = (
-    "af83b83f63ae833b05d69b87b8e216c3a0bace798699080e799cd8fff344248b"
-)
 EXPECTED_STOCK_KERNEL_SHA256 = (
     "574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2"
+)
+# The archived stock boot image that the original candidate was built against.
+# A different stock template, for example the boot image unpacked from a newer
+# OTA package, is passed with --expected-stock-boot-sha256.
+DEFAULT_STOCK_BOOT_SHA256 = (
+    "af83b83f63ae833b05d69b87b8e216c3a0bace798699080e799cd8fff344248b"
 )
 
 
@@ -89,6 +92,16 @@ def main() -> int:
     parser.add_argument("candidate", type=pathlib.Path)
     parser.add_argument("stock_boot", type=pathlib.Path)
     parser.add_argument("image", type=pathlib.Path)
+    parser.add_argument(
+        "--expected-stock-boot-sha256",
+        default=DEFAULT_STOCK_BOOT_SHA256,
+        help="accepted SHA-256 of the stock boot template",
+    )
+    parser.add_argument(
+        "--expected-stock-kernel-sha256",
+        default=EXPECTED_STOCK_KERNEL_SHA256,
+        help="expected SHA-256 of the stock kernel payload",
+    )
     args = parser.parse_args()
 
     candidate_data, candidate = parse_boot(args.candidate)
@@ -130,9 +143,9 @@ def main() -> int:
         "candidate_kernel_size_matches_input_Image": candidate["kernel_size"]
         == len(image_data),
         "stock_kernel_matches_archived_hash": stock["kernel_sha256"]
-        == EXPECTED_STOCK_KERNEL_SHA256,
+        == args.expected_stock_kernel_sha256,
         "stock_template_hash_matches_archived": sha256(stock_data)
-        == EXPECTED_STOCK_BOOT_SHA256,
+        == args.expected_stock_boot_sha256,
         "candidate_differs_from_stock": sha256(candidate_data)
         != sha256(stock_data),
         "candidate_has_AVB0": len(candidate["avb0_offsets"]) >= 1,

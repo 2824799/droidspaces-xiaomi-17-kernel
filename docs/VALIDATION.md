@@ -8,17 +8,23 @@ is in [`README.md`](README.md).
 The active variant is `kernel-work/variants/r30-stock-containers/` and is based
 on Android Common Kernel `android16-6.12-2026-03_r30`.
 
-The final recorded audit covered:
+The most recent recorded audit covered the module trees unpacked from the
+HyperOS `4.0.0.26.XPCCNXM` OTA package:
 
 | Check | Result |
 | --- | --- |
 | Vendor modules | 466 audited |
 | Stock `system_dlkm` modules | 103 audited |
 | Total modules | 569 |
-| Total imports | 28,290 |
+| Total imports | 28,320 |
 | `rust_binder.ko` imports | 234 |
 | Missing / CRC mismatch / provider conflict | 0 / 0 / 0 |
 | Strict ABI/KMI check | Pass |
+
+The equivalent audit against the previous HyperOS `4.0.0.9`/`4.0.0.16` module
+trees covered 28,290 imports with the same all-green result. Between the two
+baselines all 103 `system_dlkm` modules were byte-identical and 51 of the 466
+vendor modules changed.
 
 The public repository keeps the inputs and scripts needed to reproduce these
 checks, but not the stock firmware, private device backup, Android checkout,
@@ -35,7 +41,10 @@ On a Xiaomi 17 `pudding` test device, the User Namespace candidate:
 - passed `unshare -Ur` for User Namespace.
 
 This is not a claim of universal device compatibility. The candidate was tested
-against one device and one stock software baseline.
+against one device and one stock software baseline, HyperOS `4.0.0.16.XPCCNXM`.
+The later `4.0.0.26.XPCCNXM` candidate reuses that identical kernel Image inside
+the `.26` stock boot template and has passed the static audit and the structural
+boot-image checks, but it has not been started on hardware yet.
 
 ## Security boundary
 

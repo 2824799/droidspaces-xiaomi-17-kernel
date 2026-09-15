@@ -139,6 +139,35 @@ kernel-work/variants/r30-stock-containers/scripts/verify.sh
 STOCK_BOOT=backup/your-stock-boot.img kernel-work/variants/r30-stock-containers/scripts/package-stock-boot.sh
 ```
 
+如果手边没有可用的 ADB 设备，可以用纯主机路径完成同样的打包；它使用
+`scripts/repack-stock-boot.py`，其输出已针对归档 stock 模板验证过与设备上 ARM64
+MagiskBoot 的结果逐字节一致：
+
+```sh
+STOCK_BOOT=kernel-work/cache/ota-4.0.0.26/boot.img \
+STOCK_BOOT_SHA256=b752ce64344608ad325fdf67804e0ff15c023b7b7c7a12d4a859d576354959b1 \
+  kernel-work/variants/r30-stock-containers/scripts/package-stock-boot-host.sh
+```
+
+`scripts/audit.sh` 的模块树可以通过 `VENDOR_MODULES_DIR` 与 `SYSTEM_MODULES_DIR`
+覆盖，因此可以直接对某个 OTA 包解出的模块树重新审计，而不必依赖手工备份的基线。
+
+## 针对新系统版本的适配
+
+当 OEM 完整 OTA 包更新系统版本时，内核 payload 未必变化。已经验证过三次：
+HyperOS `4.0.0.9`、`4.0.0.16`、`4.0.0.26` 的 stock `boot` 分区里内嵌 kernel 的
+SHA-256 都是
+`574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2`。所以适配一个
+新版本通常只需要三步，不需要重新编译内核：
+
+1. 用 `scripts/extract-payload-partition.py` 从 OTA 里取出该版本的 stock `boot`；
+2. 用同一 OTA 的模块树重跑 `scripts/audit.sh`，确认候选内核仍满足全部模块导入；
+3. 用 `scripts/package-stock-boot-host.sh` 把已审计的 Image 重新打包进新模板，并
+   记录新的候选哈希。
+
+`.26` 的完整记录见
+[`docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md`](../../../docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md)。
+
 `STOCK_BOOT` 必须指向你自己取得并校验过的 stock boot 镜像；stock 固件、设备备份、工具和构建产物不属于公开仓库。
 
 `patches/common/series` 在 6 个 stock 兼容补丁之后包含：

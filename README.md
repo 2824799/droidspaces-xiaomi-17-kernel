@@ -29,8 +29,9 @@ auditing both vendor modules and stock `system_dlkm` consumers.
 ## Current validation status
 
 - 569 stock modules audited: 466 vendor modules + 103 `system_dlkm` modules.
-- 28,290 module imports checked with zero missing, CRC-mismatch, provider-conflict,
-  or present-unexported results in the final audit.
+- The current audit runs against the module trees unpacked from the HyperOS
+  `4.0.0.26.XPCCNXM` OTA package; 28,320 module imports were checked with zero
+  missing, CRC-mismatch, provider-conflict, or present-unexported results.
 - `rust_binder.ko` imports audited separately; all 234 imports matched.
 - A Xiaomi 17 `pudding` device booted the User Namespace candidate and passed the
   `unshare -Ur` runtime smoke test.
@@ -54,11 +55,14 @@ public validation summary.
 ## Version profile on this branch
 
 This branch targets the Xiaomi 17 `pudding` (`25113PN0EC`) stock software profile:
-Android 17, Settings version `4.0.0.16.XPCCNXM.D00`, and stock kernel release
-`6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k`. The previous validated kernel
-baseline was HyperOS `4.0.0.9.XPCCNXM.D00`; the current branch records the `.16` device
-identity and the binary boot comparison. See [`docs/PLATFORM_PROFILE.md`](docs/PLATFORM_PROFILE.md)
-for the exact values and migration boundary.
+Android 17, Settings version `4.0.0.26.XPCCNXM.D00`, and stock kernel release
+`6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k`. The stock kernel payload is
+byte-identical across HyperOS `4.0.0.9`, `4.0.0.16`, and `4.0.0.26`, so the same
+audited Image is repacked against each version's own stock boot template. See
+[`docs/PLATFORM_PROFILE.md`](docs/PLATFORM_PROFILE.md) for the exact values and the
+migration boundary, and
+[`docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md`](docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md)
+for the current adaptation record.
 
 ## Important safety boundary
 

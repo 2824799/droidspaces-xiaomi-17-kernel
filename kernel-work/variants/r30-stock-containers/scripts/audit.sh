@@ -8,8 +8,10 @@ relative_path() { realpath --relative-to="$PROJECT_ROOT" "$1"; }
 VARIANT="r30-stock-containers"
 ARTIFACT_DIR="${1:-$ROOT/artifacts/$VARIANT/latest}"
 BASELINE="$ROOT/cache/device-baseline/pudding-stock-20260826"
-VENDOR_MODULES_DIR="$BASELINE/vendor_ramdisk/lib/modules"
-SYSTEM_MODULES_DIR="$BASELINE/system_dlkm_flatten"
+# The module trees can be overridden to audit a specific stock baseline, for
+# example the trees unpacked from a newer OTA package.
+VENDOR_MODULES_DIR="${VENDOR_MODULES_DIR:-$BASELINE/vendor_ramdisk/lib/modules}"
+SYSTEM_MODULES_DIR="${SYSTEM_MODULES_DIR:-$BASELINE/system_dlkm_flatten}"
 AUDIT_ID="${AUDIT_ID:-$(date -u +%Y%m%dT%H%M%SZ)-stock569}"
 REPORT_ROOT="$ROOT/logs/$VARIANT/module-audit"
 REPORT_DIR="$REPORT_ROOT/$AUDIT_ID"

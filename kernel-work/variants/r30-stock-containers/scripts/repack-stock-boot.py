@@ -11,6 +11,7 @@ equivalence against a known MagiskBoot repack before using the result.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import pathlib
 import struct
 
@@ -91,6 +92,13 @@ def main() -> int:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(output)
+    print(f"stock_template={args.stock_boot}")
+    print(f"stock_kernel_size={stock_kernel_size}")
+    print(f"replacement_kernel={args.kernel}")
+    print(f"replacement_kernel_size={len(kernel)}")
+    print(f"vbmeta_offset={new_vbmeta_offset} vbmeta_size={vbmeta_size}")
+    print(f"output={args.output} output_size={len(output)}")
+    print(f"output_sha256={hashlib.sha256(output).hexdigest()}")
     return 0
 
 

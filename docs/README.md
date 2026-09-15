@@ -1709,3 +1709,126 @@ kernel-work/logs/r30-stock-containers/device-tests/20260828T041954Z-morning-stab
 - EFI/ABL 漏洞链只归档，不作为常规测试工具重新运行。
 
 本项目当前可信且仍实际存在的核心资料包括：本文、2026-08-26 当前完整字库、外置盘中的到货旧字库，以及本文记录的历史构建哈希与实机结论。被删除的旧源码、构建目录和候选镜像不得假定仍可恢复。
+
+
+## 23. 2026-09-15：HyperOS 4.0.0.26 适配
+
+OEM 完整包 `pudding-ota_full-OS4.0.0.26.XPCCNXM-user-17.0-9c0a5c052e.zip` 是一个
+8.4 GB 的 payload OTA，内部只有 `payload.bin` 与清单文件。本次没有依赖设备：直接读
+payload 的 `DeltaArchiveManifest`，按 install operation 重建目标分区，并把结果与清单里
+记录的 SHA-256 比对，因此每个解出的分区镜像都能自证。
+
+~~~text
+boot        100663296  48 ops  sha256=b752ce64344608ad325fdf67804e0ff15c023b7b7c7a12d4a859d576354959b1
+system_dlkm  17281024   9 ops  sha256=6396c406e6bf184e114116d46ea4fd68075919bef3b0e3fb7df7c1c47315fae9
+vendor_boot 100663296  48 ops  sha256=95e19140586f4ee8c8d5f676b39865882a480240306f0bae453f263017b484d1
+vendor_dlkm  59604992  29 ops  sha256=ed4e30467470f3d00d8534f5e2fcfa2bf9171cd0ea06bbf8a4bbe0f8ce2db915
+~~~
+
+`system_dlkm` 与 `vendor_dlkm` 是 EROFS 镜像（不是 gzip），需要 erofs-utils 解包；
+`vendor_boot` 的 vendor ramdisk 是 LZ4 legacy frame 包着的 cpio。两棵模块树解出后数量与
+此前的审计范围一致：466 个 vendor 模块、103 个 `system_dlkm` 模块。
+
+### 23.1 内核 payload 第三次没有变化
+
+`.26` 的 stock `boot` 与 `.16` 的设备备份逐字节比较：
+
+| 项目 | 结果 |
+|---|---|
+| 文件大小 | 100663296 bytes，两者相同 |
+| boot header | 版本 4，4096 页，header size 1584，ramdisk size 0 |
+| kernel offset | 4096，两者相同 |
+| kernel 大小 | 41507328 bytes，两者相同 |
+| kernel SHA-256 | `574006dc475adc70dac65ec8cf8fcbbf0b18b0c31584a84702257788964c8ec2`，两者相同 |
+| 差异字节 | 543 bytes，全部位于 kernel 之后的 vbmeta 区 |
+| 差异内容 | 版本标签 `OS4.0.0.16.XPCCN` → `OS4.0.0.25.XPCCN` |
+
+这是同一结论的第三次出现：从到货旧系统到 `4.0.0.9`、`4.0.0.9` 到 `4.0.0.16`、
+`4.0.0.16` 到 `4.0.0.26`，小米都没有改动 stock kernel payload。因此 `.26` 不需要重新
+编译，只需要把已经通过审计的 Image 装进 `.26` 自己的 stock boot 模板。需要强调的是，
+“payload 相同”不等于“旧的自定义 boot 镜像可以直接刷”：vbmeta 里的版本描述、AVB 布局和
+模板都随版本变化，正确做法始终是用目标版本自己的 stock boot 重新打包。
+
+### 23.2 模块树变化
+
+两棵模块树与旧的 `20260826` 手工基线对比：
+
+~~~text
+vendor modules:      466, 无增无减, 415 个逐字节相同, 51 个发生变化
+system_dlkm modules: 103, 全部逐字节相同
+~~~
+
+变化的 51 个模块集中在充电、电池计量、USB、动态预读和部分 mca_* 驱动上。`system_dlkm`
+完全没变，其中包含此前唯一出过 KMI 问题的 `rust_binder.ko`。
+
+### 23.3 针对 `.26` 模块树的重新审计
+
+审计脚本新增 `VENDOR_MODULES_DIR` 与 `SYSTEM_MODULES_DIR` 覆盖点，因此可以直接审计
+某个 OTA 解出的模块树，不必依赖手工备份：
+
+~~~text
+vendor modules / imports:        466 / 22504
+system_dlkm modules / imports:   103 / 5816
+total modules / imports:         569 / 28320
+stock rust_binder imports:       234, 全部匹配
+missing / CRC mismatch / provider conflict / present-unexported:  0 / 0 / 0 / 0
+legacy module flag mismatch:     0
+reference vermagic:              6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k SMP preempt mod_unload modversions aarch64
+audit verdict:                   pass
+~~~
+
+导入总数从 `.9` 基线的 28290 变成 28320（vendor 侧多 30 个），其余判定项与历史结论一致。
+`vendor_release_mismatch_modules=466` 不是新发现：`.9` 那次审计同样是 466，该字段本来
+就反映 OEM 模块 vermagic 后缀与候选内核不同，且不在验收门槛里。
+
+### 23.4 主机侧重新打包与等价性
+
+`.16` 那次候选是用设备上的 ARM64 MagiskBoot 打包的。本次新增
+`scripts/package-stock-boot-host.sh`，用纯主机路径完成同样的工作。这里有一个可直接
+复核的等价性证据：把归档的 `.16` stock 模板和同一份 Image 喂给主机脚本，输出与设备上
+MagiskBoot 的产物逐字节相同，即 `6066cebcbb1d1e6d0ec48db48ee5f45ea0c0aef14fedcd0ed279f12e6df2f633`
+——那正是 `.16` 分支上写入设备并原样读回的镜像。两个模板的 header 版本、页大小、header
+大小、空 ramdisk 和 vbmeta 大小全部一致，走的是同一条布局代码路径。
+
+`.26` 候选结果：
+
+~~~text
+Kernel Image:  42232320 bytes  sha256=9645dec7d368198597372c64fcb45b9bd525238a42e7e8c8098911a2e4040aae
+Boot image:   100663296 bytes  sha256=b974c356caf877d3c30893a117b83a2c69955f14ed088ead98641bd32207ba19
+~~~
+
+打包过程只改 kernel 区与 header 页里的 `kernel_size` 字段（header 页仅 2 个字节不同），
+原样复用 stock vbmeta 块，输出大小与 stock 分区镜像完全相同。结构校验全部通过：大小等于
+模板、header 版本 4、ramdisk 为 0、内嵌 kernel 等于审计过的 Image、模板 kernel 等于归档
+的 stock payload、vbmeta 块被复用。
+
+### 23.5 当前状态
+
+~~~text
+静态模块审计（针对 .26 模块树）:  pass
+boot 镜像结构校验:                pass
+上机测试:                        未执行
+Xiaomi AVB 签名:                 无效（kernel payload 未签名）
+~~~
+
+`.26` 候选尚未在任何硬件上启动过。同一份 Image 的 `.16` 镜像在 2026-09-03 做过持久化
+`boot_b` 刷写测试并正常启动，但那份结论不能直接搬到 `.26`：模板不同，vbmeta 的版本
+描述也不同。本次准备打包时手机以 MTP 模式插在 USB 上，ADB 不可见（USB 调试未打开或授权
+被重置），因此刷机与运行验证需要等设备恢复 ADB 后再做。
+
+### 23.6 本次新增的工具
+
+~~~text
+kernel-work/variants/r30-stock-containers/scripts/extract-payload-partition.py
+    从 payload OTA 重建指定分区，自带清单哈希校验
+kernel-work/variants/r30-stock-containers/scripts/package-stock-boot-host.sh
+    不依赖设备的主机侧打包
+kernel-work/variants/r30-stock-containers/scripts/audit.sh
+    新增模块树目录覆盖点
+kernel-work/variants/r30-stock-containers/scripts/verify-stock-boot.py
+    期望哈希改为可传入
+~~~
+
+注意 `repack-stock-boot.py` 与 `verify-stock-boot.py` 里保留的归档哈希
+（`af83b83f…`、`574006dc…`）是 `.9` 时代模板的默认值，用于防止误用；换成新模板时必须
+显式传入对应的期望值，否则脚本会直接拒绝，而不是静默通过。
