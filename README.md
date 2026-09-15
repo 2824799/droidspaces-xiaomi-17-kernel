@@ -28,9 +28,10 @@ auditing both vendor modules and stock `system_dlkm` consumers.
 
 ## Current validation status
 
-- 569 stock modules audited: 466 vendor modules + 103 `system_dlkm` modules.
+- 973 stock modules audited: 466 vendor ramdisk modules + 103 `system_dlkm`
+  modules + 404 `vendor_dlkm` modules.
 - The current audit runs against the module trees unpacked from the HyperOS
-  `4.0.0.26.XPCCNXM` OTA package; 28,320 module imports were checked with zero
+  `4.0.0.26.XPCCNXM` OTA package; 53,527 module imports were checked with zero
   missing, CRC-mismatch, provider-conflict, or present-unexported results.
 - `rust_binder.ko` imports audited separately; all 234 imports matched.
 - A Xiaomi 17 `pudding` device booted the User Namespace candidate and passed the

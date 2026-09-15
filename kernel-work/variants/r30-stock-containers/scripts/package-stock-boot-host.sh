@@ -51,10 +51,11 @@ done
 [[ "$(meta_value audit_pass "$AUDIT_META")" == yes ]] || { echo "Module audit has not passed" >&2; exit 1; }
 [[ "$(meta_value vendor_modules "$AUDIT_META")" == 466 ]] || { echo "Vendor audit did not cover 466 modules" >&2; exit 1; }
 [[ "$(meta_value system_dlkm_modules "$AUDIT_META")" == 103 ]] || { echo "system_dlkm audit did not cover 103 modules" >&2; exit 1; }
-[[ "$(meta_value total_modules "$AUDIT_META")" == 569 ]] || { echo "Combined audit did not cover 569 modules" >&2; exit 1; }
+[[ "$(meta_value vendor_dlkm_modules "$AUDIT_META")" == 404 ]] || { echo "vendor_dlkm audit did not cover 404 modules" >&2; exit 1; }
+[[ "$(meta_value total_modules "$AUDIT_META")" == 973 ]] || { echo "Combined audit did not cover 973 modules" >&2; exit 1; }
 [[ "$(meta_value rust_binder_bad_imports "$AUDIT_META")" == 0 ]] || { echo "rust_binder has incompatible imports" >&2; exit 1; }
 [[ "$(meta_value rust_binder_audit_pass "$AUDIT_META")" == yes ]] || { echo "rust_binder audit did not pass" >&2; exit 1; }
-for prefix in vendor system_dlkm; do
+for prefix in vendor system_dlkm vendor_dlkm; do
   for key in missing crc_mismatch provider_conflict present_unexported flag_mismatch_modules; do
     [[ "$(meta_value "${prefix}_$key" "$AUDIT_META")" == 0 ]] || { echo "Module audit gate failed: ${prefix}_$key" >&2; exit 1; }
   done

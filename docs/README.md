@@ -1754,32 +1754,37 @@ vendor_dlkm  59604992  29 ops  sha256=ed4e30467470f3d00d8534f5e2fcfa2bf9171cd0ea
 两棵模块树与旧的 `20260826` 手工基线对比：
 
 ~~~text
-vendor modules:      466, 无增无减, 415 个逐字节相同, 51 个发生变化
-system_dlkm modules: 103, 全部逐字节相同
+vendor ramdisk modules: 466, 无增无减, 415 个逐字节相同, 51 个发生变化
+system_dlkm modules:    103, 全部逐字节相同
+vendor_dlkm modules:    404, 与 vendor ramdisk 只有 295 个重名, 本次首次纳入审计
 ~~~
 
 变化的 51 个模块集中在充电、电池计量、USB、动态预读和部分 mca_* 驱动上。`system_dlkm`
-完全没变，其中包含此前唯一出过 KMI 问题的 `rust_binder.ko`。
+完全没变，其中包含此前唯一出过 KMI 问题的 `rust_binder.ko`。`vendor_dlkm` 是独立分区，
+里面剩下 109 个 `*_dlkm.ko`（音频、相机、显示等）在过去 569 模块的审计范围之外，因此
+本次把它作为第三棵独立的消费者树一起审计。
 
 ### 23.3 针对 `.26` 模块树的重新审计
 
 审计脚本新增 `VENDOR_MODULES_DIR` 与 `SYSTEM_MODULES_DIR` 覆盖点，因此可以直接审计
-某个 OTA 解出的模块树，不必依赖手工备份：
+某个 OTA 解出的模块树，不必依赖手工备份；`vendor_dlkm` 也被加进审计范围：
 
 ~~~text
-vendor modules / imports:        466 / 22504
-system_dlkm modules / imports:   103 / 5816
-total modules / imports:         569 / 28320
-stock rust_binder imports:       234, 全部匹配
+vendor ramdisk modules / imports: 466 / 22504
+system_dlkm modules / imports:    103 / 5816
+vendor_dlkm modules / imports:    404 / 25207
+total modules / imports:          973 / 53527
+stock rust_binder imports:        234, 全部匹配
 missing / CRC mismatch / provider conflict / present-unexported:  0 / 0 / 0 / 0
 legacy module flag mismatch:     0
 reference vermagic:              6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k SMP preempt mod_unload modversions aarch64
 audit verdict:                   pass
 ~~~
 
-导入总数从 `.9` 基线的 28290 变成 28320（vendor 侧多 30 个），其余判定项与历史结论一致。
-`vendor_release_mismatch_modules=466` 不是新发现：`.9` 那次审计同样是 466，该字段本来
-就反映 OEM 模块 vermagic 后缀与候选内核不同，且不在验收门槛里。
+全部新增的 404 个模块在第一次审计时就零缺失地通过，包括 `camera.ko`、`audio_pkt_dlkm.ko`
+这类之前从未验证过的消费者。`vendor_release_mismatch_modules=466`（以及 `vendor_dlkm` 的
+404）不是新发现：`.9` 那次审计同样是 466，该字段本来就反映 OEM 模块 vermagic 后缀与
+候选内核不同，且不在验收门槛里。
 
 ### 23.4 主机侧重新打包与等价性
 
@@ -1824,7 +1829,7 @@ kernel-work/variants/r30-stock-containers/scripts/extract-payload-partition.py
 kernel-work/variants/r30-stock-containers/scripts/package-stock-boot-host.sh
     不依赖设备的主机侧打包
 kernel-work/variants/r30-stock-containers/scripts/audit.sh
-    新增模块树目录覆盖点
+    新增模块树目录覆盖点，并把 vendor_dlkm 纳入审计范围（569 -> 973 个模块）
 kernel-work/variants/r30-stock-containers/scripts/verify-stock-boot.py
     期望哈希改为可传入
 ~~~

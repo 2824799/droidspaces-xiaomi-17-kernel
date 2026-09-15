@@ -64,24 +64,34 @@ kernel; the audit result for the complete set is recorded below.
 ## Audit result for `.26`
 
 ```text
-vendor modules / imports:        466 / 22504
-system_dlkm modules / imports:   103 / 5816
-total modules / imports:         569 / 28320
-stock rust_binder imports:       234, all matched
+vendor ramdisk modules / imports:  466 / 22504
+system_dlkm modules / imports:     103 / 5816
+vendor_dlkm modules / imports:     404 / 25207
+total modules / imports:           973 / 53527
+stock rust_binder imports:         234, all matched
 missing / CRC mismatch / provider conflict / present-unexported:  0 / 0 / 0 / 0
-legacy module flag mismatch:     0
-strict ABI/KMI:                  pass
-audit verdict:                   pass
+legacy module flag mismatch:       0
+strict ABI/KMI:                    pass
+audit verdict:                     pass
 ```
+
+This audit also extends the consumer coverage of the earlier records. The `.9`
+and `.16` releases audited 466 vendor ramdisk modules plus 103 `system_dlkm`
+modules. The `vendor_dlkm` partition is separate and shares only 295 modules with
+the vendor ramdisk, so 109 `*_dlkm.ko` modules - audio, camera, display, and the
+rest of the vendor DLKM set - had never been checked against the candidate
+kernel. All of them now resolve every import too, which is the same class of gap
+that previously hid the `rust_binder` KMI regression.
 
 The reference vermagic is
 `6.12.69-android16-6-gb1493ec68d4a-abogki514973465-4k SMP preempt mod_unload modversions aarch64`,
 matching the candidate kernel and the stock module set.
 
 One consistent value is worth recording so it is not mistaken for a new finding:
-all 466 vendor modules report a vermagic string that differs from the candidate's
-trailing `SMP preempt mod_unload modversions aarch64`, exactly as in the earlier
-`.9` audit, and that field is not an acceptance gate.
+the 466 vendor ramdisk modules and the 404 `vendor_dlkm` modules report a
+vermagic string that differs from the candidate's trailing
+`SMP preempt mod_unload modversions aarch64`, exactly as in the earlier `.9`
+audit, and that field is not an acceptance gate.
 
 ## Candidate asset identity
 
@@ -166,4 +176,3 @@ partial file.
   bootloader policy.
 - Do not modify `vbmeta`, `vendor_boot`, `init_boot`, calibration partitions,
   modem/NV partitions, or other device-unique partitions based on this record.
-

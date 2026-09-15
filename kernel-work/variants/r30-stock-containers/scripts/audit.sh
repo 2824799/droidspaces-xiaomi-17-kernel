@@ -12,6 +12,7 @@ BASELINE="$ROOT/cache/device-baseline/pudding-stock-20260826"
 # example the trees unpacked from a newer OTA package.
 VENDOR_MODULES_DIR="${VENDOR_MODULES_DIR:-$BASELINE/vendor_ramdisk/lib/modules}"
 SYSTEM_MODULES_DIR="${SYSTEM_MODULES_DIR:-$BASELINE/system_dlkm_flatten}"
+VENDOR_DLKM_MODULES_DIR="${VENDOR_DLKM_MODULES_DIR:-$BASELINE/vendor_dlkm}"
 AUDIT_ID="${AUDIT_ID:-$(date -u +%Y%m%dT%H%M%SZ)-stock569}"
 REPORT_ROOT="$ROOT/logs/$VARIANT/module-audit"
 REPORT_DIR="$REPORT_ROOT/$AUDIT_ID"
@@ -29,10 +30,12 @@ for input in \
 done
 [[ -d "$VENDOR_MODULES_DIR" ]] || { echo "Missing vendor modules: $VENDOR_MODULES_DIR" >&2; exit 1; }
 [[ -d "$SYSTEM_MODULES_DIR" ]] || { echo "Missing system_dlkm modules: $SYSTEM_MODULES_DIR" >&2; exit 1; }
-mkdir -p "$REPORT_DIR/vendor-ramdisk" "$REPORT_DIR/system-dlkm" "$(dirname "$META")"
+[[ -d "$VENDOR_DLKM_MODULES_DIR" ]] || { echo "Missing vendor_dlkm modules: $VENDOR_DLKM_MODULES_DIR" >&2; exit 1; }
+mkdir -p "$REPORT_DIR/vendor-ramdisk" "$REPORT_DIR/system-dlkm" "$REPORT_DIR/vendor-dlkm" "$(dirname "$META")"
 
 vendor_count=$(find "$VENDOR_MODULES_DIR" -type f -name '*.ko' | wc -l)
 system_count=$(find "$SYSTEM_MODULES_DIR" -type f -name '*.ko' | wc -l)
+vendor_dlkm_count=$(find "$VENDOR_DLKM_MODULES_DIR" -type f -name '*.ko' | wc -l)
 {
   printf 'audit_id=%s\n' "$AUDIT_ID"
   printf 'started_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -42,8 +45,10 @@ system_count=$(find "$SYSTEM_MODULES_DIR" -type f -name '*.ko' | wc -l)
   printf 'module_symvers_sha256=%s\n' "$(sha256sum "$ARTIFACT_DIR/Module.symvers" | awk '{print $1}')"
   printf 'vendor_modules_dir=%s\n' "$(relative_path "$VENDOR_MODULES_DIR")"
   printf 'system_dlkm_modules_dir=%s\n' "$(relative_path "$SYSTEM_MODULES_DIR")"
+  printf 'vendor_dlkm_modules_dir=%s\n' "$(relative_path "$VENDOR_DLKM_MODULES_DIR")"
   printf 'vendor_ramdisk_module_count=%s\n' "$vendor_count"
   printf 'system_dlkm_module_count=%s\n' "$system_count"
+  printf 'vendor_dlkm_module_count=%s\n' "$vendor_dlkm_count"
 } > "$REPORT_DIR/audit-context.txt"
 
 grep -E '__tracepoint_android_vh_(cma_alloc_lat_(start|end)|dma_heap_buffer_alloc_lat_(start|end)|mm_direct_reclaim_(start|end))([[:space:]]|$)' \
@@ -52,17 +57,20 @@ grep -E '__tracepoint_android_vh_(cma_alloc_lat_(start|end)|dma_heap_buffer_allo
 run_audit() {
   local label=$1
   local modules_dir=$2
-  local provider_dir=$3
+  shift 2
   local out="$REPORT_DIR/$label"
   local -a command=(
     "$AUDITOR"
     --modules-dir "$modules_dir"
-    --provider-modules-dir "$provider_dir"
     --module-symvers "$ARTIFACT_DIR/Module.symvers"
     --reference-module "$ARTIFACT_DIR/r8152.ko"
     --vmlinux "$ARTIFACT_DIR/vmlinux"
     --report-dir "$out"
   )
+  local provider_dir
+  for provider_dir in "$@"; do
+    command+=(--provider-modules-dir "$provider_dir")
+  done
   set +e
   "${command[@]}" 2>&1 | tee "$out/console.txt"
   local code=${PIPESTATUS[0]}
@@ -70,10 +78,13 @@ run_audit() {
   printf '%s\n' "$code" > "$out/exit-code.txt"
 }
 
-# Each consumer tree keeps its own same-name providers first; the other tree
-# supplies fallback providers for cross-partition imports.
-run_audit vendor-ramdisk "$VENDOR_MODULES_DIR" "$SYSTEM_MODULES_DIR"
-run_audit system-dlkm "$SYSTEM_MODULES_DIR" "$VENDOR_MODULES_DIR"
+# Each consumer tree keeps its own same-name providers first; the other trees
+# supply fallback providers for cross-partition imports.  vendor_dlkm lives in
+# its own partition and shares only part of its module set with the vendor
+# ramdisk, so it is audited as a third independent consumer tree.
+run_audit vendor-ramdisk "$VENDOR_MODULES_DIR" "$SYSTEM_MODULES_DIR" "$VENDOR_DLKM_MODULES_DIR"
+run_audit system-dlkm "$SYSTEM_MODULES_DIR" "$VENDOR_MODULES_DIR" "$VENDOR_DLKM_MODULES_DIR"
+run_audit vendor-dlkm "$VENDOR_DLKM_MODULES_DIR" "$VENDOR_MODULES_DIR" "$SYSTEM_MODULES_DIR"
 
 python3 - "$REPORT_DIR" "$REPORT_DIR/audit-context.txt" "$META" <<'PY'
 import csv
@@ -112,6 +123,9 @@ def load(label: str, expected_modules: int):
 
 vendor, vendor_exit, vendor_bad, vendor_pass, vendor_summary_path = load("vendor-ramdisk", 466)
 system, system_exit, system_bad, system_pass, system_summary_path = load("system-dlkm", 103)
+vendor_dlkm, vendor_dlkm_exit, vendor_dlkm_bad, vendor_dlkm_pass, vendor_dlkm_summary_path = load(
+    "vendor-dlkm", 404
+)
 
 imports_path = report_dir / "system-dlkm" / "imports.tsv"
 with imports_path.open(newline="") as stream:
@@ -128,8 +142,17 @@ with rust_report.open("w", newline="") as stream:
     writer.writeheader()
     writer.writerows(rust_rows)
 
-passed = vendor_pass and system_pass and rust_pass
-total_imports = int(vendor.get("imports", 0)) + int(system.get("imports", 0))
+passed = vendor_pass and system_pass and vendor_dlkm_pass and rust_pass
+total_modules = (
+    int(vendor.get("modules", 0))
+    + int(system.get("modules", 0))
+    + int(vendor_dlkm.get("modules", 0))
+)
+total_imports = (
+    int(vendor.get("imports", 0))
+    + int(system.get("imports", 0))
+    + int(vendor_dlkm.get("imports", 0))
+)
 lines = [
     "variant=r30-stock-containers",
     f"audit_id={context['audit_id']}",
@@ -146,7 +169,13 @@ lines = [
     *(f"system_dlkm_{key}={value}" for key, value in system_bad.items()),
     f"system_dlkm_release_mismatch_modules={system.get('release_mismatch_modules', 0)}",
     f"system_dlkm_flag_mismatch_modules={system.get('flag_mismatch_modules', 0)}",
-    f"total_modules={int(vendor.get('modules', 0)) + int(system.get('modules', 0))}",
+    f"vendor_dlkm_audit_exit={vendor_dlkm_exit}",
+    f"vendor_dlkm_modules={vendor_dlkm.get('modules', 0)}",
+    f"vendor_dlkm_imports={vendor_dlkm.get('imports', 0)}",
+    *(f"vendor_dlkm_{key}={value}" for key, value in vendor_dlkm_bad.items()),
+    f"vendor_dlkm_release_mismatch_modules={vendor_dlkm.get('release_mismatch_modules', 0)}",
+    f"vendor_dlkm_flag_mismatch_modules={vendor_dlkm.get('flag_mismatch_modules', 0)}",
+    f"total_modules={total_modules}",
     f"total_imports={total_imports}",
     f"rust_binder_imports={len(rust_rows)}",
     f"rust_binder_bad_imports={len(rust_bad)}",
@@ -159,6 +188,7 @@ lines = [
     f"report_dir={report_dir.relative_to(pathlib.Path(sys.argv[3]).resolve().parents[4])}",
     f"vendor_summary_sha256={hashlib.sha256(vendor_summary_path.read_bytes()).hexdigest()}",
     f"system_dlkm_summary_sha256={hashlib.sha256(system_summary_path.read_bytes()).hexdigest()}",
+    f"vendor_dlkm_summary_sha256={hashlib.sha256(vendor_dlkm_summary_path.read_bytes()).hexdigest()}",
     f"rust_binder_report_sha256={hashlib.sha256(rust_report.read_bytes()).hexdigest()}",
 ]
 meta_path.write_text("\n".join(lines) + "\n")

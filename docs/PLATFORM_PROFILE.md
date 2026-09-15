@@ -85,12 +85,15 @@ kernel payload，因此 `.26` 不需要重新编译内核：只需把已经审�
 `.26` 的模块树直接从 OTA 包解出，比沿用手工备份的旧基线更贴近当前系统：
 
 ~~~text
-vendor modules:      466, none added or removed, 415 identical, 51 changed
-system_dlkm modules: 103, all identical
+vendor ramdisk modules: 466, none added or removed, 415 identical, 51 changed
+system_dlkm modules:    103, all identical
+vendor_dlkm modules:    404, audited as an independent consumer tree for the first time
 ~~~
 
 51 个变化的 vendor 模块在针对候选内核的导入审计中全部通过；`system_dlkm` 的 103 个
-模块（其中包含 `rust_binder.ko`）与旧基线完全一致。
+模块（其中包含 `rust_binder.ko`）与旧基线完全一致。`vendor_dlkm` 是独立分区，与 vendor
+ramdisk 只有 295 个模块重名，因此其中 109 个 `*_dlkm.ko` 在此前的记录里从未被审计过；
+本次一并纳入，三棵树共 973 个模块、53527 个导入全部通过。
 
 ## Kernel scope
 
@@ -107,4 +110,3 @@ payload 会破坏 Xiaomi AVB 签名，任何镜像都只能按对应设备的安
 [`docs/RELEASE_R30_STOCK_CONTAINERS_20260828.md`](RELEASE_R30_STOCK_CONTAINERS_20260828.md)
 与
 [`docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md`](RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md)。
-
