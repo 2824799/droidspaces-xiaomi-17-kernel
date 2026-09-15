@@ -76,8 +76,12 @@ kernel payload，因此 `.26` 不需要重新编译内核：只需把已经审�
 
 `b974c356caf877d3c30893a117b83a2c69955f14ed088ead98641bd32207ba19`
 
-该候选已完成针对 `.26` 模块树的完整静态审计与结构校验，但尚未做上机测试。测试记录与
-完整数据见
+2026-09-15 该候选已通过 `fastboot flash boot_a` 持久化刷入活动槽并正常启动：回读分区与
+发布镜像逐字节一致，设备保持在 `_a`，内核为自定义构建（Fri Aug 28 05:00:00 UTC 2026），
+六个容器配置全为 `=y`，670 个模块（含 `rust_binder.ko`）加载正常，`unshare -Ur`、
+`-Upf`、`-U -i` 全部可用，Wi-Fi 与双卡语音/数据均正常，30 秒窗口内 boot_id 未变化。
+刷写前现场读出的 stock `boot_a` 与从 OTA 提取的模板逐字节一致，确认模板来源正确。
+测试记录与完整数据见
 [`docs/RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md`](RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md)。
 
 ## Module baseline change

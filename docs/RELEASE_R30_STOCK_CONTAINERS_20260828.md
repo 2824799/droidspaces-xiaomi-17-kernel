@@ -27,6 +27,13 @@ Validated baseline: Android 17 / HyperOS 4.0.0.9.XPCCNXM.D00
 - 466 vendor modules and 103 stock `system_dlkm` modules were audited.
 - 28,290 imports were checked with zero missing symbols, CRC mismatches, or
   provider conflicts.
+
+The audit scope recorded here is the vendor ramdisk tree plus `system_dlkm`. The
+separate `vendor_dlkm` partition was added to the audit later, on the `.26`
+branch, bringing the covered consumer set to 973 modules; see
+[`RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md`](RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.26.md).
+That broader run also passed with zero missing symbols, CRC mismatches, or
+provider conflicts, so the conclusion in this document is unchanged.
 - The stock `rust_binder.ko` consumer's 234 imports matched.
 - The build uses `CONFIG_PID_NS=y`, `CONFIG_IPC_NS=y`, `CONFIG_SYSVIPC=y`,
   `CONFIG_POSIX_MQUEUE=y`, `CONFIG_DEVTMPFS=y`, and `CONFIG_USER_NS=y`.

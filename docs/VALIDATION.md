@@ -45,10 +45,12 @@ On a Xiaomi 17 `pudding` test device, the User Namespace candidate:
 - passed `unshare -Ur` for User Namespace.
 
 This is not a claim of universal device compatibility. The candidate was tested
-against one device and one stock software baseline, HyperOS `4.0.0.16.XPCCNXM`.
-The later `4.0.0.26.XPCCNXM` candidate reuses that identical kernel Image inside
-the `.26` stock boot template and has passed the static audit and the structural
-boot-image checks, but it has not been started on hardware yet.
+against one device on two stock software baselines. The `4.0.0.16.XPCCNXM`
+candidate was written to `boot_b` on September 3, 2026. The
+`4.0.0.26.XPCCNXM` candidate reuses the same kernel Image inside the `.26`
+stock boot template and was written to the active `boot_a` on September 15,
+2026; it booted, loaded all 670 modules including `rust_binder`, passed the
+namespace smoke tests, and reported working Wi-Fi and cellular service.
 
 ## Security boundary
 

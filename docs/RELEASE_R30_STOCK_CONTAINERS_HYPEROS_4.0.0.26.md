@@ -125,20 +125,63 @@ written to the device on the `.16` branch and read back unchanged. Both template
 use the same header version, page size, header size, empty ramdisk, and vbmeta
 size, so the same layout code path applies.
 
+## Persistent device test
+
+On September 15, 2026, the boot image was written to the active `boot_a`
+partition with `fastboot flash boot_a` on the unlocked test device, and the
+device was rebooted normally rather than started with a temporary `fastboot
+boot`. The partition was read back after boot and matched the published image
+byte-for-byte, and the device stayed on slot `_a` and completed Android boot.
+
+The device was already running the target software before the flash:
+
+```text
+ro.build.version.incremental = OS4.0.0.26.XPCCNXM
+ro.build.fingerprint         = Xiaomi/pudding/pudding:17/CP2A.260605.016/OS4.0.0.26.XPCCNXM:user/release-keys
+ro.boot.slot_suffix          = _a
+ro.boot.verifiedbootstate    = orange
+ro.boot.flash.locked         = 0
+```
+
+Passed checks after the flash:
+
+```text
+sys.boot_completed                                    1
+kernel build timestamp                                Fri Aug 28 05:00:00 UTC 2026 (the candidate, not stock)
+CONFIG_PID_NS / IPC_NS / SYSVIPC / POSIX_MQUEUE / DEVTMPFS / USER_NS   all =y
+loaded modules                                        670
+rust_binder.ko                                        loaded
+unshare -Ur / -Upf / -U -i                            all succeeded
+uid_map inside the user namespace                     0 0 1
+Wi-Fi                                                 Supplicant state: COMPLETED, IPv4 assigned
+cellular                                              both SIMs IN_SERVICE, voice+data on NR_SA
+boot_id over a 30-second window                       unchanged
+panic / oops / kernel BUG / KMI or CRC error          none
+```
+
+The only warning in the kernel log was a benign
+`capability: warning: wpa_supplicant uses 32-bit capabilities`. The
+`drm_crtc_set_max_vblank_count` trace seen during the `.16` test did not appear
+here.
+
+Before the flash, the stock `boot_a` on the device was read out and matched the
+boot image extracted from the OTA package byte-for-byte, which confirms that the
+template used for the repack is the exact stock partition for this build. The
+stock `boot_b` was still the earlier `.16` custom image, so the other slot was
+left untouched as a fallback.
+
 ## Validation status
 
 ```text
-static module audit:       pass, against the .26 module trees
+static module audit:       pass, 973 modules and 53527 imports against the .26 module trees
 structural verification:   pass
+device boot test:          pass, persistent boot_a flash on 2026-09-15
 bootloader/AVB signature:  not valid; the kernel payload is unsigned
-device boot test:          not run for this candidate
 ```
 
-This candidate has not been started on hardware. The `.16` boot image carrying
-the same kernel Image was device-tested on September 3, 2026; see
-[`RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md`](RELEASE_R30_STOCK_CONTAINERS_HYPEROS_4.0.0.16.md).
-Until the `.26` candidate is flashed and observed, treat it as an audited build
-with an unverified runtime state.
+This release is marked device-tested for the `.26` candidate itself. It does not
+claim long-term stress, suspend/resume, call/SMS, or universal regional
+compatibility.
 
 ## OTA extraction procedure
 
