@@ -54,8 +54,8 @@ from the vendor ramdisk inside `vendor_boot`, and 103 modules from the
 `system_dlkm` partition.
 
 ```text
-vendor modules:        466, none added or removed, 415 byte-identical, 51 changed
-system_dlkm modules:   103, all 103 byte-identical
+vendor ramdisk modules: 466, none added or removed, 415 byte-identical, 51 changed
+system_dlkm modules:    103, all 103 byte-identical
 ```
 
 The 51 changed vendor modules still resolve every import against the candidate
