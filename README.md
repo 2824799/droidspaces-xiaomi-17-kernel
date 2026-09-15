@@ -5,9 +5,27 @@ primitives on the Xiaomi 17 (`pudding`, Qualcomm SM8850 / `canoe`) with the
 Android Common Kernel `android16-6.12-2026-03_r30` GKI baseline.
 
 This repository is intentionally a source-and-process project. It contains the
-patch series, source locks, build/audit scripts, and public validation notes. It
-does not contain Android source checkouts, stock firmware, device backups,
-private keys, or generated kernel images.
+patch series, source locks, build/audit scripts, and public validation notes. The
+repository tree does not contain Android source checkouts, stock firmware, device
+backups, private keys, or generated kernel images; finished, device-tested boot
+images are published separately as GitHub Releases.
+
+## Releases
+
+Each release contains a complete, directly flashable `boot.img` for one stock
+software version, plus the kernel `Image` it was built from and a `SHA256SUMS`
+file. The stock kernel payload is identical across the three versions, so the
+same audited kernel is repacked against each version's own stock boot template.
+
+| HyperOS version | Target | Status |
+| --- | --- | --- |
+| `4.0.0.26.XPCCNXM` | Android 17 / Xiaomi 17 / `pudding` | device-tested on `boot_a`, 2026-09-15 |
+| `4.0.0.16.XPCCNXM` | Android 17 / Xiaomi 17 / `pudding` | device-tested on `boot_b`, 2026-09-03 |
+| `4.0.0.9.XPCCNXM` | Android 17 / Xiaomi 17 / `pudding` | static audit; the 2026-08-27 device-tested binaries were not retained |
+
+Pick the release that matches the HyperOS version already installed on your
+device. The boot image is a complete boot-format image for the plain `boot`
+partition; do not write the raw `Image` to a partition.
 
 ## What this project does
 
@@ -77,9 +95,15 @@ device-unique partitions. Keep a verified stock backup outside this repository.
 
 ## Search terms
 
-`Droidspaces` · `Xiaomi 17` · `pudding` · `SM8850` · `canoe` · Android GKI
-6.12 · Linux kernel · User Namespace · PID namespace · IPC namespace · SYSV IPC
-· POSIX mqueue · devtmpfs · KernelSU · Rust Binder · KMI · CRC · Kleaf · Bazel
+`Droidspaces` · `Xiaomi 17` · `25113PN0EC` · `pudding` · `SM8850` · `canoe`
+· HyperOS `4.0.0.26.XPCCNXM` · HyperOS `4.0.0.16.XPCCNXM` · HyperOS
+`4.0.0.9.XPCCNXM` · `OS4.0.0.26.XPCCNXM` · `CP2A.260605.016` · Android 17 · SDK 37
+· Android GKI 6.12 · `android16-6.12-2026-03_r30` · Linux kernel · custom kernel
+· `boot.img` · boot image · repack · User Namespace · `CONFIG_USER_NS` · PID
+namespace · `CONFIG_PID_NS` · IPC namespace · `CONFIG_IPC_NS` · SYSV IPC ·
+`CONFIG_SYSVIPC` · POSIX mqueue · devtmpfs · `unshare` · container · Docker ·
+Flatpak · Bubblewrap · sandbox · KernelSU · Rust Binder · KMI · CRC · module
+vermagic · Kleaf · Bazel · 小米 17 · 澎湃 OS · 内核 · 容器 · 用户命名空间
 
 ## License and upstream notices
 
